@@ -1,7 +1,7 @@
 {
     "name": "karsonzhang/think-addons",
     "description": "addons package for fastadmin",
-    "homepage": "https://github.com/karsonzhang/think-addons",
+    "homepage": "https://github.com/karsonzhang/fastadmin-addons",
     "license": "Apache-2.0",
     "minimum-stability": "dev",
     "version": "2.1.0",
@@ -9,14 +9,14 @@
         {
             "name": "xiaobo.sun",
             "email": "xiaobo.sun@qq.com"
-        }, 
+        },
         {
-            "name": "karsonzhang", 
+            "name": "karsonzhang",
             "email": "karsonzhang@163.com"
         }
     ],
     "support": {
-        "issues": "https://github.com/karsonzhang/think-addons/issues"
+        "issues": "https://github.com/karsonzhang/fastadmin-addons/issues"
     },
     "require": {
         "php": ">=5.4.0",

@@ -1,26 +1,19 @@
 <?php
-// +----------------------------------------------------------------------
-// | thinkphp5 Addons [ WE CAN DO IT JUST THINK IT ]
-// +----------------------------------------------------------------------
-// | Copyright (c) 2016 http://www.zzstudio.net All rights reserved.
-// +----------------------------------------------------------------------
-// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
-// +----------------------------------------------------------------------
-// | Author: Byron Sampson <xiaobo.sun@qq.com>
-// +----------------------------------------------------------------------
+
 namespace think\addons;
 
-use think\Request;
 use think\Config;
+use think\Lang;
 use think\Loader;
+use think\Request;
 
 /**
  * 插件基类控制器
- * Class Controller
  * @package think\addons
  */
 class Controller extends \think\Controller
 {
+
     // 当前插件操作
     protected $addon = null;
     protected $controller = null;
@@ -29,15 +22,15 @@ class Controller extends \think\Controller
     protected $template;
     // 模板配置信息
     protected $config = [
-        'type' => 'Think',
-        'view_path' => '',
-        'view_suffix' => 'html',
-        'strip_space' => true,
-        'view_depr' => DS,
-        'tpl_begin' => '{',
-        'tpl_end' => '}',
+        'type'         => 'Think',
+        'view_path'    => '',
+        'view_suffix'  => 'html',
+        'strip_space'  => true,
+        'view_depr'    => DS,
+        'tpl_begin'    => '{',
+        'tpl_end'      => '}',
         'taglib_begin' => '{',
-        'taglib_end' => '}',
+        'taglib_end'   => '}',
     ];
 
     /**
@@ -51,15 +44,22 @@ class Controller extends \think\Controller
         $this->request = is_null($request) ? Request::instance() : $request;
         // 初始化配置信息
         $this->config = Config::get('template') ?: $this->config;
-        // 处理路由参数
-        $route = $this->request->param('route', '');
-        $param = explode('-', $route);
+        
         // 是否自动转换控制器和操作名
-        $convert = \think\Config::get('url_convert');
-        // 格式化路由的插件位置
-        $this->action = $convert ? strtolower(array_pop($param)) : array_pop($param);
-        $this->controller = $convert ? strtolower(array_pop($param)) : array_pop($param);
-        $this->addon = $convert ? strtolower(array_pop($param)) : array_pop($param);
+        $convert = Config::get('url_convert');
+        
+        $filter = $convert ? 'strtolower' : '';
+        // 处理路由参数
+        $this->addon = $this->request->param('addon', '', $filter);
+        $this->controller = $this->request->param('controller', 'index', $filter);
+        $this->action = $this->request->param('action', 'index', $filter);
+
+        // 判断插件状态
+        $info = get_addon_info($this->addon);
+        if (!$info || !$info['state'])
+        {
+            $this->error("插件未找到或已经禁用");
+        }
 
         // 生成view_path
         $view_path = $this->config['view_path'] ?: 'view';
@@ -67,7 +67,21 @@ class Controller extends \think\Controller
         // 重置配置
         Config::set('template.view_path', ADDON_PATH . $this->addon . DS . $view_path . DS);
 
+        // 父类的调用必须放在设置模板路径之后
         parent::__construct($request);
+
+        // 渲染配置到视图中
+        $config = get_addon_config($this->addon);
+        $this->view->assign("config", $config);
+
+        // 加载系统语言包
+        Lang::load([
+            ADDON_PATH . $this->addon . DS . 'lang' . DS . $this->request->langset() . EXT,
+        ]);
+
+        // 设置替换字符串
+        $cdnurl = Config::get('site.cdnurl');
+        $this->view->replace('__ADDON__', $cdnurl . "/assets/addons/" . $this->addon);
     }
 
     /**
@@ -82,16 +96,21 @@ class Controller extends \think\Controller
     protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
         $controller = Loader::parseName($this->controller);
-        if ('think' == strtolower($this->config['type']) && $controller && 0 !== strpos($template, '/')) {
+        if ('think' == strtolower($this->config['type']) && $controller && 0 !== strpos($template, '/'))
+        {
             $depr = $this->config['view_depr'];
             $template = str_replace(['/', ':'], $depr, $template);
-            if ('' == $template) {
+            if ('' == $template)
+            {
                 // 如果模板文件名为空 按照默认规则定位
                 $template = str_replace('.', DS, $controller) . $depr . $this->action;
-            } elseif (false === strpos($template, $depr)) {
+            }
+            elseif (false === strpos($template, $depr))
+            {
                 $template = str_replace('.', DS, $controller) . $depr . $template;
             }
         }
         return parent::fetch($template, $vars, $replace, $config);
     }
+
 }
