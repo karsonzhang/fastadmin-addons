@@ -17,18 +17,6 @@ class Service
 {
 
     /**
-     * 远程下载地址
-     * @var string 
-     */
-    protected static $remote_url = "http://www.fa.com/api/addon/download";
-
-    /**
-     * 插件外非安全目录检测
-     * @var array 
-     */
-    protected static $check_dirs = ['application', 'public'];
-
-    /**
      * 远程下载插件
      * 
      * @param string $name 插件名称
@@ -38,7 +26,12 @@ class Service
      */
     public static function download($name)
     {
-        $tmpFile = RUNTIME_PATH . "addons" . DS . $name . ".zip";
+        $addonTmpDir = RUNTIME_PATH . 'addons' . DS;
+        if (!is_dir($addonTmpDir))
+        {
+            @mkdir($addonTmpDir, 0755, true);
+        }
+        $tmpFile = $addonTmpDir . $name . ".zip";
         $options = [
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT        => 10,
@@ -46,7 +39,7 @@ class Service
                 'X-REQUESTED-WITH: XMLHttpRequest'
             ]
         ];
-        $ret = Http::sendRequest(self::$remote_url, ['name' => $name], 'GET', $options);
+        $ret = Http::sendRequest(self::getServerUrl() . '/addon/download', ['name' => $name], 'GET', $options);
         if ($ret['ret'])
         {
             if (substr($ret['msg'], 0, 1) == '{')
@@ -274,7 +267,7 @@ EOD;
         {
             copydirs($sourceAssetsDir, $destAssetsDir);
         }
-        foreach (self::$check_dirs as $k => $dir)
+        foreach (self::getCheckDirs() as $k => $dir)
         {
             if (is_dir($addonDir . $dir))
             {
@@ -397,7 +390,7 @@ EOD;
         {
             copydirs($sourceAssetsDir, $destAssetsDir);
         }
-        foreach (self::$check_dirs as $k => $dir)
+        foreach (self::getCheckDirs() as $k => $dir)
         {
             if (is_dir($addonDir . $dir))
             {
@@ -467,7 +460,7 @@ EOD;
         $list = [];
         $addonDir = ADDON_PATH . $name . DS;
         // 扫描插件目录是否有覆盖的文件
-        foreach (self::$check_dirs as $k => $dir)
+        foreach (self::getCheckDirs() as $k => $dir)
         {
             $checkDir = ROOT_PATH . DS . $dir . DS;
             if (!is_dir($checkDir))
@@ -522,6 +515,27 @@ EOD;
     protected static function getDestAssetsDir($name)
     {
         return ROOT_PATH . str_replace("/", DS, "public/assets/addons/{$name}/");
+    }
+
+    /**
+     * 获取远程服务器
+     * @return string
+     */
+    protected static function getServerUrl()
+    {
+        return config('fastadmin.api_url');
+    }
+
+    /**
+     * 获取检测的全局文件夹目录
+     * @return array
+     */
+    protected static function getCheckDirs()
+    {
+        return [
+            'application',
+            'public'
+        ];
     }
 
 }

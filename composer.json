@@ -1,5 +1,5 @@
 {
-    "name": "karsonzhang/fastadmin-addons",
+    "name": "karsonzhang/think-addons",
     "description": "addons package for fastadmin",
     "homepage": "https://github.com/karsonzhang/fastadmin-addons",
     "license": "Apache-2.0",
@@ -7,12 +7,12 @@
     "version": "2.1.0",
     "authors": [
         {
-            "name": "xiaobo.sun",
-            "email": "xiaobo.sun@qq.com"
-        },
-        {
             "name": "karsonzhang",
             "email": "karsonzhang@163.com"
+        },
+        {
+            "name": "xiaobo.sun",
+            "email": "xiaobo.sun@qq.com"
         }
     ],
     "support": {
