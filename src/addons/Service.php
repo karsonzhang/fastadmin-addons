@@ -45,8 +45,22 @@ class Service
             if (substr($ret['msg'], 0, 1) == '{')
             {
                 $json = (array) json_decode($ret['msg'], true);
-                //下载返回错误，抛出异常
-                throw new AddonException($json['msg'], $json['code'], $json['data']);
+                //如果传回的是一个下载链接,则再次下载
+                if ($json['data'] && isset($json['data']['url']))
+                {
+                    array_pop($options);
+                    $ret = Http::sendRequest($json['data']['url'], [], 'GET', $options);
+                    if (!$ret['ret'])
+                    {
+                        //下载返回错误，抛出异常
+                        throw new AddonException($json['msg'], $json['code'], $json['data']);
+                    }
+                }
+                else
+                {
+                    //下载返回错误，抛出异常
+                    throw new AddonException($json['msg'], $json['code'], $json['data']);
+                }
             }
             if ($write = fopen($tmpFile, 'w'))
             {
