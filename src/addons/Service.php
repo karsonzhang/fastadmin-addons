@@ -528,7 +528,12 @@ EOD;
      */
     protected static function getDestAssetsDir($name)
     {
-        return ROOT_PATH . str_replace("/", DS, "public/assets/addons/{$name}/");
+        $assetsDir = ROOT_PATH . str_replace("/", DS, "public/assets/addons/{$name}/");
+        if (!is_dir($assetsDir))
+        {
+            mkdir($assetsDir, 0755, true);
+        }
+        return $assetsDir;
     }
 
     /**
