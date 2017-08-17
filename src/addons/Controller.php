@@ -40,35 +40,31 @@ class Controller extends \think\Controller
      */
     public function __construct(Request $request = null)
     {
+        if (is_null($request)) {
+            $request = Request::instance();
+        }
         // 生成request对象
-        $this->request = is_null($request) ? Request::instance() : $request;
+        $this->request = $request;
         // 初始化配置信息
         $this->config = Config::get('template') ?: $this->config;
-        
+
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
-        
+
         $filter = $convert ? 'strtolower' : '';
         // 处理路由参数
         $this->addon = $this->request->param('addon', '', $filter);
         $this->controller = $this->request->param('controller', 'index', $filter);
         $this->action = $this->request->param('action', 'index', $filter);
 
-        // 判断插件状态
-        $info = get_addon_info($this->addon);
-        if (!$info || !$info['state'])
-        {
-            $this->error("插件未找到或已经禁用");
-        }
-
         // 生成view_path
         $view_path = $this->config['view_path'] ?: 'view';
-
+        
         // 重置配置
         Config::set('template.view_path', ADDON_PATH . $this->addon . DS . $view_path . DS);
-
+        
         // 父类的调用必须放在设置模板路径之后
-        parent::__construct($request);
+        parent::__construct($this->request);
 
         // 渲染配置到视图中
         $config = get_addon_config($this->addon);

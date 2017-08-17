@@ -85,6 +85,10 @@ function hook($hook, $params = [])
     Hook::listen($hook, $params);
 }
 
+/**
+ * 获得插件列表
+ * @return array
+ */
 function get_addon_list()
 {
     $results = scandir(ADDON_PATH);
@@ -113,6 +117,10 @@ function get_addon_list()
     return $list;
 }
 
+/**
+ * 获得插件自动加载的配置
+ * @return array
+ */
 function get_addon_autoload_config($truncate = false)
 {
     // 读取addons的配置
@@ -172,10 +180,8 @@ function get_addon_class($name, $type = 'hook', $class = null)
     if (!is_null($class) && strpos($class, '.'))
     {
         $class = explode('.', $class);
-        foreach ($class as $key => $cls)
-        {
-            $class[$key] = Loader::parseName($cls, 1);
-        }
+
+        $class[count($class) - 1] = Loader::parseName(end($class), 1);
         $class = implode('\\', $class);
     }
     else
