@@ -193,7 +193,7 @@ class Service
         if ($handle = fopen($addonsFile, 'w'))
         {
             $tpl = <<<EOD
-define(['backend'], function (Backend) {
+define([], function () {
     {__JS__}
 });
 EOD;
