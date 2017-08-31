@@ -456,9 +456,9 @@ EOD;
 
         $info = get_addon_info($name);
         $info['state'] = 0;
+        unset($info['url']);
 
         set_addon_info($name, $info);
-        unset($info['url']);
 
         // 刷新
         Service::refresh();
