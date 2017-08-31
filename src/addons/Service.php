@@ -20,11 +20,12 @@ class Service
      * 远程下载插件
      * 
      * @param string $name 插件名称
+     * @param array $extend 扩展参数
      * @return string
      * @throws AddonException
      * @throws Exception
      */
-    public static function download($name)
+    public static function download($name, $extend = [])
     {
         $addonTmpDir = RUNTIME_PATH . 'addons' . DS;
         if (!is_dir($addonTmpDir))
@@ -39,7 +40,7 @@ class Service
                 'X-REQUESTED-WITH: XMLHttpRequest'
             ]
         ];
-        $ret = Http::sendRequest(self::getServerUrl() . '/addon/download', ['name' => $name], 'GET', $options);
+        $ret = Http::sendRequest(self::getServerUrl() . '/addon/download', array_merge(['name' => $name], $extend), 'GET', $options);
         if ($ret['ret'])
         {
             if (substr($ret['msg'], 0, 1) == '{')
@@ -233,11 +234,12 @@ EOD;
      * 
      * @param string $name 插件名称
      * @param boolean $force 是否覆盖
+     * @param array $extend 扩展参数
      * @return boolean
      * @throws Exception
      * @throws AddonException
      */
-    public static function install($name, $force = false)
+    public static function install($name, $force = false, $extend = [])
     {
         if (!$name || (is_dir(ADDON_PATH . $name) && !$force))
         {
@@ -245,7 +247,7 @@ EOD;
         }
 
         // 远程下载插件
-        $tmpFile = Service::download($name);
+        $tmpFile = Service::download($name, $extend);
 
         // 解压插件
         $addonDir = Service::unzip($name);
