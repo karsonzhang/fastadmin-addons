@@ -18,16 +18,17 @@ class Route
     /**
      * 插件执行
      */
-    public function execute()
+    public function execute($addon = null, $controller = null, $action = null)
     {
         $request = Request::instance();
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
-        $filter = $convert ? 'strtolower' : '';
-        // 处理路由参数
-        $addon = $request->param('addon', '', $filter);
-        $controller = $request->param('controller', 'index', $filter);
-        $action = $request->param('action', 'index', $filter);
+        $filter = $convert ? 'strtolower' : 'trim';
+        
+        $addon = $addon ? call_user_func($filter, $addon) : '';
+        $controller = $controller ? call_user_func($filter, $controller) : 'index';
+        $action = $action ? call_user_func($filter, $action) : 'index';
+
         if (!empty($addon) && !empty($controller) && !empty($action))
         {
             $info = get_addon_info($addon);

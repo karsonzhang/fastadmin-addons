@@ -40,7 +40,8 @@ class Controller extends \think\Controller
      */
     public function __construct(Request $request = null)
     {
-        if (is_null($request)) {
+        if (is_null($request))
+        {
             $request = Request::instance();
         }
         // 生成request对象
@@ -51,18 +52,27 @@ class Controller extends \think\Controller
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
 
-        $filter = $convert ? 'strtolower' : '';
+        $filter = $convert ? 'strtolower' : 'trim';
         // 处理路由参数
-        $this->addon = $this->request->param('addon', '', $filter);
-        $this->controller = $this->request->param('controller', 'index', $filter);
-        $this->action = $this->request->param('action', 'index', $filter);
+        $param = $this->request->param();
+        $dispatch = $this->request->dispatch();
+        $var = isset($dispatch['var']) ? $dispatch['var'] : [];
+        $var = array_merge($param, $var);
+
+        $addon = isset($var['addon']) ? $var['addon'] : '';
+        $controller = isset($var['controller']) ? $var['controller'] : '';
+        $action = isset($var['action']) ? $var['action'] : '';
+
+        $this->addon = $addon ? call_user_func($filter, $addon) : '';
+        $this->controller = $controller ? call_user_func($filter, $controller) : 'index';
+        $this->action = $action ? call_user_func($filter, $action) : 'index';
 
         // 生成view_path
         $view_path = $this->config['view_path'] ?: 'view';
-        
+
         // 重置配置
         Config::set('template.view_path', ADDON_PATH . $this->addon . DS . $view_path . DS);
-        
+
         // 父类的调用必须放在设置模板路径之后
         parent::__construct($this->request);
 
