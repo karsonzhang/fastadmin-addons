@@ -43,6 +43,18 @@ Hook::add('app_init', function () {
 
 // 闭包初始化行为
 Hook::add('app_init', function () {
+    //注册路由
+    $route = (array) Config::get('addons.route');
+    $rules = [];
+    foreach ($route as $k => $v)
+    {
+        if (!$v)
+            continue;
+        list($addon, $controller, $action) = explode('/', $v);
+        $rules[$k] = "\\think\\addons\\Route@execute?addon={$addon}&controller={$controller}&action={$action}";
+    }
+    Route::rule($rules);
+
     // 获取系统配置
     $hooks = App::$debug ? [] : Cache::get('hooks', []);
     if (empty($hooks))
@@ -130,6 +142,7 @@ function get_addon_autoload_config($truncate = false)
         // 清空手动配置的钩子
         $config['hooks'] = [];
     }
+    $route = [];
     // 读取插件目录及钩子列表
     $base = get_class_methods("\\think\\Addons");
 
@@ -162,7 +175,15 @@ function get_addon_autoload_config($truncate = false)
                 $config['hooks'][$hook][] = $name;
             }
         }
+        $conf = get_addon_config($addon['name']);
+        if ($conf && isset($conf['rewrite']))
+        {
+            $route = array_merge($route, array_map(function($value) use($addon) {
+                        return "{$addon['name']}/{$value}";
+                    }, array_flip($conf['rewrite'])));
+        }
     }
+    $config['route'] = $route;
     return $config;
 }
 
@@ -206,11 +227,16 @@ function get_addon_class($name, $type = 'hook', $class = null)
  */
 function get_addon_info($name)
 {
+    static $_addons = [];
+    if (isset($_addons[$name]))
+    {
+        return $_addons[$name]->getInfo($name);
+    }
     $class = get_addon_class($name);
     if (class_exists($class))
     {
-        $addon = new $class();
-        return $addon->getInfo($name);
+        $_addons[$name] = new $class();
+        return $_addons[$name]->getInfo($name);
     }
     else
     {
@@ -225,11 +251,16 @@ function get_addon_info($name)
  */
 function get_addon_fullconfig($name)
 {
+    static $_addons = [];
+    if (isset($_addons[$name]))
+    {
+        return $_addons[$name]->getFullConfig($name);
+    }
     $class = get_addon_class($name);
     if (class_exists($class))
     {
-        $addon = new $class();
-        return $addon->getFullConfig($name);
+        $_addons[$name] = new $class();
+        return $_addons[$name]->getFullConfig($name);
     }
     else
     {
@@ -244,11 +275,16 @@ function get_addon_fullconfig($name)
  */
 function get_addon_config($name)
 {
+    static $_addons = [];
+    if (isset($_addons[$name]))
+    {
+        return $_addons[$name]->getConfig($name);
+    }
     $class = get_addon_class($name);
     if (class_exists($class))
     {
-        $addon = new $class();
-        return $addon->getConfig($name);
+        $_addons[$name] = new $class();
+        return $_addons[$name]->getConfig($name);
     }
     else
     {
@@ -258,15 +294,44 @@ function get_addon_config($name)
 
 /**
  * 插件显示内容里生成访问插件的url
- * @param $url 地址
- * @param array $param
- * @return bool|string
+ * @param $url 地址 格式：插件名/控制器/方法
+ * @param array $vars 变量参数
  * @param bool|string $suffix 生成的URL后缀
  * @param bool|string $domain 域名
+ * @return bool|string 
  */
-function addon_url($url, $param = [], $suffix = true, $domain = false)
+function addon_url($url, $vars = [], $suffix = true, $domain = false)
 {
-    return url("@addons/{$url}", $param, $suffix, $domain);
+    $url = ltrim($url, '/');
+    $addon = substr($url, 0, stripos($url, '/'));
+    if (!is_array($vars))
+    {
+        parse_str($vars, $params);
+        $vars = $params;
+    }
+    $params = [];
+    foreach ($vars as $k => $v)
+    {
+        if (substr($k, 0, 1) === ':')
+        {
+            $params[$k] = $v;
+            unset($vars[$k]);
+        }
+    }
+    $val = "@addons/{$url}";
+    $config = get_addon_config($addon);
+    if ($config && isset($config['rewrite']) && $config['rewrite'])
+    {
+        $path = substr($url, stripos($url, '/') + 1);
+        if (isset($config['rewrite'][$path]) && $config['rewrite'][$path])
+        {
+            $val = $config['rewrite'][$path];
+            array_walk($params, function($value, $key) use(&$val) {
+                $val = str_replace("[{$key}]", $value, $val);
+            });
+        }
+    }
+    return url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
 }
 
 /**
