@@ -329,6 +329,7 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
             array_walk($params, function($value, $key) use(&$val) {
                 $val = str_replace("[{$key}]", $value, $val);
             });
+            $val = str_replace(['^', '$'], '', $val);
         }
     }
     return url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
