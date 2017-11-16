@@ -18,7 +18,7 @@ class Service
 
     /**
      * 远程下载插件
-     * 
+     *
      * @param string $name 插件名称
      * @param array $extend 扩展参数
      * @return string
@@ -76,7 +76,7 @@ class Service
 
     /**
      * 解压插件
-     * 
+     *
      * @param string $name 插件名称
      * @return string
      * @throws Exception
@@ -105,7 +105,7 @@ class Service
 
     /**
      * 检测插件是否完整
-     * 
+     *
      * @param string $name 插件名称
      * @return boolean
      * @throws Exception
@@ -131,7 +131,7 @@ class Service
 
     /**
      * 是否有冲突
-     * 
+     *
      * @param string $name 插件名称
      * @return boolean
      * @throws AddonException
@@ -173,7 +173,7 @@ class Service
 
     /**
      * 刷新插件缓存文件
-     * 
+     *
      * @return boolean
      * @throws Exception
      */
@@ -231,7 +231,7 @@ EOD;
 
     /**
      * 安装插件
-     * 
+     *
      * @param string $name 插件名称
      * @param boolean $force 是否覆盖
      * @param array $extend 扩展参数
@@ -316,7 +316,7 @@ EOD;
 
     /**
      * 卸载插件
-     * 
+     *
      * @param string $name
      * @param boolean $force 是否强制卸载
      * @return boolean
@@ -414,6 +414,26 @@ EOD;
             }
         }
 
+
+        //执行启用脚本
+        try
+        {
+            $class = get_addon_class($name);
+            if (class_exists($class))
+            {
+                $addon = new $class();
+                if(method_exists($class,"enable"))
+                {
+                    $addon->enable();
+                }
+            }
+        }
+        catch (Exception $e)
+        {
+            throw new Exception($e->getMessage());
+        }
+
+
         $info = get_addon_info($name);
         $info['state'] = 1;
         unset($info['url']);
@@ -431,7 +451,6 @@ EOD;
         {
             throw new Exception('Addon not exists');
         }
-
         if (!$force)
         {
             Service::noconflict($name);
@@ -460,6 +479,27 @@ EOD;
 
         set_addon_info($name, $info);
 
+
+        // 执行禁用脚本
+        try
+        {
+            $class = get_addon_class($name);
+            if (class_exists($class))
+            {
+                $addon = new $class();
+
+                if(method_exists($class,"disable"))
+                {
+                    $addon->disable();
+                }
+            }
+        }
+        catch (Exception $e)
+        {
+            throw new Exception($e->getMessage());
+        }
+
+
         // 刷新
         Service::refresh();
         return true;
@@ -467,7 +507,7 @@ EOD;
 
     /**
      * 获取插件在全局的文件
-     * 
+     *
      * @param string $name
      * @return array
      */
@@ -486,7 +526,7 @@ EOD;
             {
                 //匹配出所有的文件
                 $files = new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($addonDir . $dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
+                    new RecursiveDirectoryIterator($addonDir . $dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
                 );
 
                 foreach ($files as $fileinfo)
