@@ -330,6 +330,10 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
                 $val = str_replace("[{$key}]", $value, $val);
             });
             $val = str_replace(['^', '$'], '', $val);
+            if (substr($val, -1) === '/')
+            {
+                $suffix = false;
+            }
         }
     }
     return url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
@@ -345,7 +349,7 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
 function set_addon_info($name, $array)
 {
 
-    $file = ADDON_PATH . $name . '/info.ini';
+    $file = ADDON_PATH . $name . DIRECTORY_SEPARATOR . 'info.ini';
     $obj = get_addon_class($name);
     $res = array();
     foreach ($array as $key => $val)
@@ -361,7 +365,7 @@ function set_addon_info($name, $array)
     }
     if ($handle = fopen($file, 'w'))
     {
-        fwrite($handle, implode("\r\n", $res));
+        fwrite($handle, implode("\n", $res) . "\n");
         fclose($handle);
         //清空当前配置缓存
         Config::set("addon-info-{$name}", NULL);
@@ -383,14 +387,14 @@ function set_addon_info($name, $array)
  */
 function set_addon_fullconfig($name, $array)
 {
-    $file = ADDON_PATH . $name . '/config.php';
+    $file = ADDON_PATH . $name . DIRECTORY_SEPARATOR . 'config.php';
     if (!is_really_writable($file))
     {
         throw new Exception("文件没有写入权限");
     }
     if ($handle = fopen($file, 'w'))
     {
-        fwrite($handle, "<?php\r\n\r\n" . "return " . var_export($array, TRUE) . ";");
+        fwrite($handle, "<?php\n\n" . "return " . var_export($array, TRUE) . ";\n");
         fclose($handle);
     }
     else

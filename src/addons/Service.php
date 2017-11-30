@@ -198,7 +198,7 @@ define([], function () {
     {__JS__}
 });
 EOD;
-            fwrite($handle, str_replace("{__JS__}", implode("\r\n", $bootstrapArr), $tpl));
+            fwrite($handle, str_replace("{__JS__}", implode("\n", $bootstrapArr), $tpl));
             fclose($handle);
         }
         else
@@ -219,7 +219,7 @@ EOD;
 
         if ($handle = fopen($file, 'w'))
         {
-            fwrite($handle, "<?php\r\n\r\n" . "return " . var_export($config, TRUE) . ";");
+            fwrite($handle, "<?php\n\n" . "return " . var_export($config, TRUE) . ";");
             fclose($handle);
         }
         else
