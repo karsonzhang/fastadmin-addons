@@ -379,6 +379,27 @@ function set_addon_info($name, $array)
 
 /**
  * 写入配置文件
+ * @param string $name  插件名
+ * @param array $config 配置数据
+ */
+function set_addon_config($name, $config)
+{
+    $fullconfig = get_addon_fullconfig($name);
+    foreach ($fullconfig as $k => &$v)
+    {
+        if (isset($config[$v['name']]))
+        {
+            $value = $v['type'] !== 'array' && is_array($config[$v['name']]) ? implode(',', $config[$v['name']]) : $config[$v['name']];
+            $v['value'] = $value;
+        }
+    }
+    // 写入配置文件
+    set_addon_fullconfig($name, $fullconfig);
+    return true;
+}
+
+/**
+ * 写入配置文件
  * 
  * @param string $name 插件名
  * @param array $array

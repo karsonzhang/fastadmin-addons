@@ -19,11 +19,11 @@ class Service
     /**
      * 远程下载插件
      *
-     * @param string $name 插件名称
-     * @param array $extend 扩展参数
-     * @return string
-     * @throws AddonException
-     * @throws Exception
+     * @param   string  $name   插件名称
+     * @param   array   $extend 扩展参数
+     * @return  string
+     * @throws  AddonException
+     * @throws  Exception
      */
     public static function download($name, $extend = [])
     {
@@ -77,9 +77,9 @@ class Service
     /**
      * 解压插件
      *
-     * @param string $name 插件名称
-     * @return string
-     * @throws Exception
+     * @param   string  $name   插件名称
+     * @return  string
+     * @throws  Exception
      */
     public static function unzip($name)
     {
@@ -106,9 +106,9 @@ class Service
     /**
      * 检测插件是否完整
      *
-     * @param string $name 插件名称
-     * @return boolean
-     * @throws Exception
+     * @param   string  $name   插件名称
+     * @return  boolean
+     * @throws  Exception
      */
     public static function check($name)
     {
@@ -132,9 +132,9 @@ class Service
     /**
      * 是否有冲突
      *
-     * @param string $name 插件名称
-     * @return boolean
-     * @throws AddonException
+     * @param   string  $name   插件名称
+     * @return  boolean
+     * @throws  AddonException
      */
     public static function noconflict($name)
     {
@@ -150,22 +150,37 @@ class Service
 
     /**
      * 导入SQL
-     * @param string $name
+     * 
+     * @param   string    $name   插件名称
+     * @return  boolean
      */
     public static function importsql($name)
     {
         $sqlFile = ADDON_PATH . $name . DS . 'install.sql';
         if (is_file($sqlFile))
         {
-            try
+            $lines = file($sqlFile);
+            $templine = '';
+            foreach ($lines as $line)
             {
-                $sql = str_replace('__PREFIX__', config('database.prefix'), file_get_contents($sqlFile));
-                // 导入SQL
-                Db::getPdo()->exec($sql);
-            }
-            catch (\think\exception\PDOException $e)
-            {
-                throw new Exception($e->getMessage());
+                if (substr($line, 0, 2) == '--' || $line == '' || substr($line, 0, 2) == '/*')
+                    continue;
+
+                $templine .= $line;
+                if (substr(trim($line), -1, 1) == ';')
+                {
+                    $templine = str_ireplace('__PREFIX__', config('database.prefix'), $templine);
+                    $templine = str_ireplace('INSERT INTO ', 'INSERT IGNORE INTO ', $templine);
+                    try
+                    {
+                        Db::getPdo()->exec($templine);
+                    }
+                    catch (\PDOException $e)
+                    {
+                        //$e->getMessage();
+                    }
+                    $templine = '';
+                }
             }
         }
         return true;
@@ -174,8 +189,8 @@ class Service
     /**
      * 刷新插件缓存文件
      *
-     * @return boolean
-     * @throws Exception
+     * @return  boolean
+     * @throws  Exception
      */
     public static function refresh()
     {
@@ -232,12 +247,12 @@ EOD;
     /**
      * 安装插件
      *
-     * @param string $name 插件名称
-     * @param boolean $force 是否覆盖
-     * @param array $extend 扩展参数
-     * @return boolean
-     * @throws Exception
-     * @throws AddonException
+     * @param   string  $name   插件名称
+     * @param   boolean $force  是否覆盖
+     * @param   array   $extend 扩展参数
+     * @return  boolean
+     * @throws  Exception
+     * @throws  AddonException
      */
     public static function install($name, $force = false, $extend = [])
     {
@@ -291,9 +306,17 @@ EOD;
             }
         }
 
-        // 执行安装脚本
         try
         {
+            // 默认启用该插件
+            $info = get_addon_info($name);
+            if (!$info['state'])
+            {
+                $info['state'] = 1;
+                set_addon_info($name, $info);
+            }
+
+            // 执行安装脚本
             $class = get_addon_class($name);
             if (class_exists($class))
             {
@@ -317,10 +340,10 @@ EOD;
     /**
      * 卸载插件
      *
-     * @param string $name
-     * @param boolean $force 是否强制卸载
-     * @return boolean
-     * @throws Exception
+     * @param   string  $name
+     * @param   boolean $force  是否强制卸载
+     * @return  boolean
+     * @throws  Exception
      */
     public static function uninstall($name, $force = false)
     {
@@ -374,6 +397,12 @@ EOD;
         return true;
     }
 
+    /**
+     * 启用
+     * @param   string  $name   插件名称
+     * @param   boolean $force  是否强制覆盖
+     * @return  boolean
+     */
     public static function enable($name, $force = false)
     {
         if (!$name || !is_dir(ADDON_PATH . $name))
@@ -381,20 +410,9 @@ EOD;
             throw new Exception('Addon not exists');
         }
 
-        try
+        if (!$force)
         {
-            if (!$force)
-            {
-                Service::noconflict($name);
-            }
-        }
-        catch (AddonException $e)
-        {
-            throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
-        }
-        catch (Exception $e)
-        {
-            throw new Exception($e->getMessage());
+            Service::noconflict($name);
         }
 
         $addonDir = ADDON_PATH . $name . DS;
@@ -414,7 +432,6 @@ EOD;
             }
         }
 
-
         //执行启用脚本
         try
         {
@@ -422,7 +439,7 @@ EOD;
             if (class_exists($class))
             {
                 $addon = new $class();
-                if(method_exists($class,"enable"))
+                if (method_exists($class, "enable"))
                 {
                     $addon->enable();
                 }
@@ -432,7 +449,6 @@ EOD;
         {
             throw new Exception($e->getMessage());
         }
-
 
         $info = get_addon_info($name);
         $info['state'] = 1;
@@ -445,6 +461,14 @@ EOD;
         return true;
     }
 
+    /**
+     * 禁用
+     * 
+     * @param   string  $name   插件名称
+     * @param   boolean $force  是否强制禁用
+     * @return  boolean
+     * @throws  Exception
+     */
     public static function disable($name, $force = false)
     {
         if (!$name || !is_dir(ADDON_PATH . $name))
@@ -464,13 +488,10 @@ EOD;
         }
 
         // 移除插件全局资源文件
-        if ($force)
+        $list = Service::getGlobalFiles($name);
+        foreach ($list as $k => $v)
         {
-            $list = Service::getGlobalFiles($name);
-            foreach ($list as $k => $v)
-            {
-                @unlink(ROOT_PATH . $v);
-            }
+            @unlink(ROOT_PATH . $v);
         }
 
         $info = get_addon_info($name);
@@ -478,7 +499,6 @@ EOD;
         unset($info['url']);
 
         set_addon_info($name, $info);
-
 
         // 执行禁用脚本
         try
@@ -488,7 +508,7 @@ EOD;
             {
                 $addon = new $class();
 
-                if(method_exists($class,"disable"))
+                if (method_exists($class, "disable"))
                 {
                     $addon->disable();
                 }
@@ -499,17 +519,59 @@ EOD;
             throw new Exception($e->getMessage());
         }
 
-
         // 刷新
         Service::refresh();
         return true;
     }
 
     /**
+     * 升级插件
+     * 
+     * @param   string  $name   插件名称
+     * @param   array   $extend 扩展参数
+     */
+    public static function upgrade($name, $extend = [])
+    {
+        $info = get_addon_info($name);
+        if ($info['state'])
+        {
+            throw new Exception(__('Please disable addon first'));
+        }
+        $config = get_addon_config($name);
+        if ($config)
+        {
+            //备份配置
+        }
+
+        // 远程下载插件
+        $tmpFile = Service::download($name, $extend);
+
+        // 解压插件
+        $addonDir = Service::unzip($name);
+
+        // 移除临时文件
+        @unlink($tmpFile);
+
+        if ($config)
+        {
+            // 还原配置
+            set_addon_config($name, $config);
+        }
+        
+        // 导入
+        Service::importsql($name);
+        
+        // 刷新
+        Service::refresh();
+        
+        return true;
+    }
+
+    /**
      * 获取插件在全局的文件
      *
-     * @param string $name
-     * @return array
+     * @param   string  $name   插件名称
+     * @return  array
      */
     public static function getGlobalFiles($name, $onlyconflict = false)
     {
@@ -526,7 +588,7 @@ EOD;
             {
                 //匹配出所有的文件
                 $files = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($addonDir . $dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
+                        new RecursiveDirectoryIterator($addonDir . $dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
                 );
 
                 foreach ($files as $fileinfo)
@@ -537,9 +599,13 @@ EOD;
                         $path = str_replace($addonDir, '', $filePath);
                         if ($onlyconflict)
                         {
-                            if (is_file(ROOT_PATH . $path))
+                            $destPath = ROOT_PATH . $path;
+                            if (is_file($destPath))
                             {
-                                $list[] = $path;
+                                if (filesize($filePath) != filesize($destPath) || md5_file($filePath) != md5_file($destPath))
+                                {
+                                    $list[] = $path;
+                                }
                             }
                         }
                         else
@@ -555,8 +621,8 @@ EOD;
 
     /**
      * 获取插件源资源文件夹
-     * @param string $name
-     * @return string
+     * @param   string  $name   插件名称
+     * @return  string
      */
     protected static function getSourceAssetsDir($name)
     {
@@ -565,8 +631,8 @@ EOD;
 
     /**
      * 获取插件目标资源文件夹
-     * @param string $name
-     * @return string
+     * @param   string  $name   插件名称
+     * @return  string
      */
     protected static function getDestAssetsDir($name)
     {
@@ -580,7 +646,7 @@ EOD;
 
     /**
      * 获取远程服务器
-     * @return string
+     * @return  string
      */
     protected static function getServerUrl()
     {
@@ -589,7 +655,7 @@ EOD;
 
     /**
      * 获取检测的全局文件夹目录
-     * @return array
+     * @return  array
      */
     protected static function getCheckDirs()
     {
