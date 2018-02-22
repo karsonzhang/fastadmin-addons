@@ -24,33 +24,37 @@ class Route
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
         $filter = $convert ? 'strtolower' : 'trim';
-        
+
         $addon = $addon ? call_user_func($filter, $addon) : '';
         $controller = $controller ? call_user_func($filter, $controller) : 'index';
         $action = $action ? call_user_func($filter, $action) : 'index';
+
+        Hook::listen('addon_begin', $request);
 
         if (!empty($addon) && !empty($controller) && !empty($action))
         {
             $info = get_addon_info($addon);
             if (!$info)
             {
-                throw new HttpException(404, 'addon not exists:' . $addon);
+                throw new HttpException(404, __('addon %s not found', $addon));
             }
             if (!$info['state'])
             {
-                throw new HttpException(500, 'the addon is disabled:' . $addon);
+                throw new HttpException(500, __('addon %s is disabled', $addon));
             }
             // 设置当前请求的控制器、操作
             $request->controller($controller)->action($action);
 
+            // 监听addon_module_init
+            Hook::listen('addon_module_init', $request);
+            // 兼容旧版本行为,即将移除,不建议使用
+            Hook::listen('addons_init', $request);
+
             $class = get_addon_class($addon, 'controller', $controller);
             if (!$class)
             {
-                throw new HttpException(404, 'controller not exists:' . Loader::parseName($controller, 1));
+                throw new HttpException(404, __('addon controller %s not found', Loader::parseName($controller, 1)));
             }
-
-            // 监听addons_init
-            Hook::listen('addons_init', $request);
 
             $instance = new $class($request);
 
@@ -69,10 +73,10 @@ class Route
             else
             {
                 // 操作不存在
-                throw new HttpException(404, 'method not exists:' . get_class($instance) . '->' . $action . '()');
+                throw new HttpException(404, __('addon action %s not found', get_class($instance) . '->' . $action . '()'));
             }
 
-            Hook::listen('action_begin', $call);
+            Hook::listen('addon_action_begin', $call);
 
             return call_user_func_array($call, $vars);
         }

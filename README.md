@@ -5,4 +5,4 @@ FastAdmin插件模块
 http://doc.fastadmin.net/docs/addons.html
 
 ## 特别感谢
-特别感谢https://github.com/5ini99/think-addons
+https://github.com/5ini99/think-addons

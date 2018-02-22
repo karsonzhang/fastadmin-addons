@@ -23,6 +23,9 @@ if (!is_dir(ADDON_PATH))
 // 注册类的根命名空间
 Loader::addNamespace('addons', ADDON_PATH);
 
+// 监听addon_init
+Hook::listen('addon_init');
+
 // 闭包自动识别插件目录配置
 Hook::add('app_init', function () {
     // 获取开关
