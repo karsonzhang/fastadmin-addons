@@ -28,9 +28,8 @@ class Route
         $addon = $addon ? call_user_func($filter, $addon) : '';
         $controller = $controller ? call_user_func($filter, $controller) : 'index';
         $action = $action ? call_user_func($filter, $action) : 'index';
-
+        
         Hook::listen('addon_begin', $request);
-
         if (!empty($addon) && !empty($controller) && !empty($action))
         {
             $info = get_addon_info($addon);

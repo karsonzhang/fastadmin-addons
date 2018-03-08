@@ -47,16 +47,39 @@ Hook::add('app_init', function () {
 // 闭包初始化行为
 Hook::add('app_init', function () {
     //注册路由
-    $route = (array) Config::get('addons.route');
+    $routeArr = (array) Config::get('addons.route');
+    $domains = [];
     $rules = [];
-    foreach ($route as $k => $v)
+    $execute = "\\think\\addons\\Route@execute?addon=%s&controller=%s&action=%s";
+    foreach ($routeArr as $k => $v)
     {
-        if (!$v)
-            continue;
-        list($addon, $controller, $action) = explode('/', $v);
-        $rules[$k] = "\\think\\addons\\Route@execute?addon={$addon}&controller={$controller}&action={$action}";
+        if (is_array($v))
+        {
+            $addon = $v['addon'];
+            $domain = $v['domain'];
+            $drules = [];
+            foreach ($v['rule'] as $m => $n)
+            {
+                list($addon, $controller, $action) = explode('/', $n);
+                $drules[$m] = sprintf($execute . '&indomain=1', $addon, $controller, $action);
+            }
+            //$domains[$domain] = $drules ? $drules : "\\addons\\{$k}\\controller";
+            $domains[$domain] = $drules ? $drules : [];
+            $domains[$domain][':controller/[:action]'] = sprintf($execute . '&indomain=1', $addon, ":controller", ":action");
+        }
+        else
+        {
+            if (!$v)
+                continue;
+            list($addon, $controller, $action) = explode('/', $v);
+            $rules[$k] = sprintf($execute, $addon, $controller, $action);
+        }
     }
     Route::rule($rules);
+    if ($domains)
+    {
+        Route::domain($domains);
+    }
 
     // 获取系统配置
     $hooks = App::$debug ? [] : Cache::get('hooks', []);
@@ -148,9 +171,11 @@ function get_addon_autoload_config($truncate = false)
     $route = [];
     // 读取插件目录及钩子列表
     $base = get_class_methods("\\think\\Addons");
+    $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable']);
 
+    $url_domain_deploy = Config::get('url_domain_deploy');
     $addons = get_addon_list();
-
+    $domain = [];
     foreach ($addons as $name => $addon)
     {
         if (!$addon['state'])
@@ -179,14 +204,28 @@ function get_addon_autoload_config($truncate = false)
             }
         }
         $conf = get_addon_config($addon['name']);
-        if ($conf && isset($conf['rewrite']))
+        if ($conf)
         {
-            $route = array_merge($route, array_map(function($value) use($addon) {
-                        return "{$addon['name']}/{$value}";
-                    }, array_flip($conf['rewrite'])));
+            $conf['rewrite'] = isset($conf['rewrite']) && is_array($conf['rewrite']) ? $conf['rewrite'] : [];
+            $rule = array_map(function($value) use($addon) {
+                return "{$addon['name']}/{$value}";
+            }, array_flip($conf['rewrite']));
+            if ($url_domain_deploy && isset($conf['domain']) && $conf['domain'])
+            {
+                $domain[] = [
+                    'addon'  => $addon['name'],
+                    'domain' => $conf['domain'],
+                    'rule'   => $rule
+                ];
+            }
+            else
+            {
+                $route = array_merge($route, $rule);
+            }
         }
     }
     $config['route'] = $route;
+    $config['route'] = array_merge($config['route'], $domain);
     return $config;
 }
 
@@ -323,12 +362,16 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
     }
     $val = "@addons/{$url}";
     $config = get_addon_config($addon);
-    if ($config && isset($config['rewrite']) && $config['rewrite'])
+    $dispatch = think\Request::instance()->dispatch();
+    $indomain = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] ? true : false;
+    $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : '';
+    $rewrite = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
+    if ($rewrite)
     {
         $path = substr($url, stripos($url, '/') + 1);
-        if (isset($config['rewrite'][$path]) && $config['rewrite'][$path])
+        if (isset($rewrite[$path]) && $rewrite[$path])
         {
-            $val = $config['rewrite'][$path];
+            $val = $rewrite[$path];
             array_walk($params, function($value, $key) use(&$val) {
                 $val = str_replace("[{$key}]", $value, $val);
             });
@@ -337,6 +380,28 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
             {
                 $suffix = false;
             }
+        }
+        else
+        {
+            // 如果采用了域名部署,则需要去掉前两段
+            if ($indomain && $domainprefix)
+            {
+                $arr = explode("/", $val);
+                $val = implode("/", array_slice($arr, 2));
+            }
+        }
+    }
+    else
+    {
+        // 如果采用了域名部署,则需要去掉前两段
+        if ($indomain && $domainprefix)
+        {
+            $arr = explode("/", $val);
+            $val = implode("/", array_slice($arr, 2));
+        }
+        foreach ($params as $k => $v)
+        {
+            $vars[substr($k, 1)] = $v;
         }
     }
     return url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
