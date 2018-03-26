@@ -22,18 +22,6 @@ class Controller extends \think\Controller
     protected $action = null;
     // 当前template
     protected $template;
-    // 模板配置信息
-    protected $config = [
-        'type'         => 'Think',
-        'view_path'    => '',
-        'view_suffix'  => 'html',
-        'strip_space'  => true,
-        'view_depr'    => DS,
-        'tpl_begin'    => '{',
-        'tpl_end'      => '}',
-        'taglib_begin' => '{',
-        'taglib_end'   => '}',
-    ];
 
     /**
      * 无需登录的方法,同时也就不需要鉴权了
@@ -49,13 +37,13 @@ class Controller extends \think\Controller
 
     /**
      * 权限Auth
-     * @var Auth 
+     * @var Auth
      */
     protected $auth = null;
-    
+
     /**
      * 布局模板
-     * @var string 
+     * @var string
      */
     protected $layout = null;
 
@@ -72,12 +60,9 @@ class Controller extends \think\Controller
         }
         // 生成request对象
         $this->request = $request;
-        
+
         //移除HTML标签
         $this->request->filter('strip_tags');
-        
-        // 初始化配置信息
-        $this->config = Config::get('template') ?: $this->config;
 
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
@@ -106,23 +91,19 @@ class Controller extends \think\Controller
         $this->controller = $controller ? call_user_func($filter, $controller) : 'index';
         $this->action = $action ? call_user_func($filter, $action) : 'index';
 
-        // 生成view_path
-        $view_path = $this->config['view_path'] ?: 'view';
-
         // 重置配置
-        Config::set('template.view_path', ADDON_PATH . $this->addon . DS . $view_path . DS);
+        Config::set('template.view_path', ADDON_PATH . $this->addon . DS . 'view' . DS);
 
         // 父类的调用必须放在设置模板路径之后
         parent::__construct($this->request);
-
     }
-    
+
     protected function _initialize()
     {
         // 渲染配置到视图中
         $config = get_addon_config($this->addon);
         $this->view->assign("config", $config);
-        
+
         // 加载系统语言包
         Lang::load([
             ADDON_PATH . $this->addon . DS . 'lang' . DS . $this->request->langset() . EXT,
@@ -131,7 +112,7 @@ class Controller extends \think\Controller
         // 设置替换字符串
         $cdnurl = Config::get('site.cdnurl');
         $this->view->replace('__ADDON__', $cdnurl . "/assets/addons/" . $this->addon);
-        
+
         $this->auth = Auth::instance();
         // token
         $token = $this->request->server('HTTP_TOKEN', $this->request->request('token', \think\Cookie::get('token')));
@@ -167,13 +148,13 @@ class Controller extends \think\Controller
                 $this->auth->init($token);
             }
         }
-        
+
         // 如果有使用模板布局
         if ($this->layout)
         {
             $this->view->engine->layout('layout/' . $this->layout);
         }
-        
+
         $this->view->assign('user', $this->auth->getUser());
 
         $site = Config::get("site");
@@ -200,9 +181,9 @@ class Controller extends \think\Controller
     protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
         $controller = Loader::parseName($this->controller);
-        if ('think' == strtolower($this->config['type']) && $controller && 0 !== strpos($template, '/'))
+        if ('think' == strtolower(Config::get('template.type')) && $controller && 0 !== strpos($template, '/'))
         {
-            $depr = $this->config['view_depr'];
+            $depr = Config::get('template.view_depr');
             $template = str_replace(['/', ':'], $depr, $template);
             if ('' == $template)
             {

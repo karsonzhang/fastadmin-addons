@@ -34,8 +34,9 @@ class Service
         }
         $tmpFile = $addonTmpDir . $name . ".zip";
         $options = [
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_HTTPHEADER     => [
                 'X-REQUESTED-WITH: XMLHttpRequest'
             ]
