@@ -20,6 +20,10 @@ abstract class Addons
     protected $error;
     // 插件目录
     public $addons_path = '';
+    // 插件配置作用域
+    protected $configRange = 'addonconfig';
+    // 插件信息作用域
+    protected $infoRange = 'addoninfo';
 
     /**
      * 架构函数
@@ -37,8 +41,7 @@ abstract class Addons
         $this->view = new View($config, Config::get('view_replace_str'));
 
         // 控制器初始化
-        if (method_exists($this, '_initialize'))
-        {
+        if (method_exists($this, '_initialize')) {
             $this->_initialize();
         }
     }
@@ -50,22 +53,18 @@ abstract class Addons
      */
     final public function getInfo($name = '')
     {
-        static $_info = array();
-        if (empty($name))
-        {
+        if (empty($name)) {
             $name = $this->getName();
         }
-        if (isset($_info[$name]))
-        {
-            return $_info[$name];
+        if (Config::has($name, $this->infoRange)) {
+            return Config::get($name, $this->infoRange);
         }
         $info_file = $this->addons_path . 'info.ini';
-        if (is_file($info_file))
-        {
-            $info = Config::parse($info_file, '', "addon-info-{$name}");
+        if (is_file($info_file)) {
+            $info = Config::parse($info_file, '', $name, $this->infoRange);
             $info['url'] = addon_url($name);
         }
-        $_info[$name] = $info;
+        Config::set($name, $info, $this->infoRange);
 
         return $info;
     }
@@ -77,29 +76,58 @@ abstract class Addons
      */
     final public function getConfig($name = '')
     {
-        static $_config = array();
-        if (empty($name))
-        {
+        if (empty($name)) {
             $name = $this->getName();
         }
-        if (isset($_config[$name]))
-        {
-            return $_config[$name];
+        if (Config::has($name, $this->configRange)) {
+            return Config::get($name, $this->configRange);
         }
         $config = [];
         $config_file = $this->addons_path . 'config.php';
-        if (is_file($config_file))
-        {
+        if (is_file($config_file)) {
             $temp_arr = include $config_file;
-            foreach ($temp_arr as $key => $value)
-            {
+            foreach ($temp_arr as $key => $value) {
                 $config[$value['name']] = $value['value'];
             }
             unset($temp_arr);
         }
-        $_config[$name] = $config;
+        Config::set($name, $config, $this->configRange);
 
         return $config;
+    }
+
+    /**
+     * 设置配置数据
+     * @param $name
+     * @param array $value
+     * @return array
+     */
+    final public function setConfig($name = '', $value = [])
+    {
+        if (empty($name)) {
+            $name = $this->getName();
+        }
+        $config = $this->getConfig($name);
+        $config = array_merge($config, $value);
+        Config::set($name, $config, $this->configRange);
+        return $config;
+    }
+
+    /**
+     * 设置插件信息数据
+     * @param $name
+     * @param array $value
+     * @return array
+     */
+    final public function setInfo($name = '', $value = [])
+    {
+        if (empty($name)) {
+            $name = $this->getName();
+        }
+        $info = $this->getInfo($name);
+        $info = array_merge($info, $value);
+        Config::set($name, $info, $this->infoRange);
+        return $info;
     }
 
     /**
@@ -110,13 +138,11 @@ abstract class Addons
     final public function getFullConfig($name = '')
     {
         $fullConfigArr = [];
-        if (empty($name))
-        {
+        if (empty($name)) {
             $name = $this->getName();
         }
         $config_file = $this->addons_path . 'config.php';
-        if (is_file($config_file))
-        {
+        if (is_file($config_file)) {
             $fullConfigArr = include $config_file;
         }
         return $fullConfigArr;
@@ -139,11 +165,9 @@ abstract class Addons
     final public function checkInfo()
     {
         $info = $this->getInfo();
-        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'state'];
-        foreach ($info_check_keys as $value)
-        {
-            if (!array_key_exists($value, $info))
-            {
+        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'require', 'state'];
+        foreach ($info_check_keys as $value) {
+            if (!array_key_exists($value, $info)) {
                 return false;
             }
         }
@@ -162,8 +186,7 @@ abstract class Addons
      */
     public function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
-        if (!is_file($template))
-        {
+        if (!is_file($template)) {
             $template = '/' . $template;
         }
         // 关闭模板布局
