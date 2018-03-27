@@ -165,7 +165,7 @@ abstract class Addons
     final public function checkInfo()
     {
         $info = $this->getInfo();
-        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'require', 'state'];
+        $info_check_keys = ['name', 'title', 'intro', 'author', 'version', 'state'];
         foreach ($info_check_keys as $value) {
             if (!array_key_exists($value, $info)) {
                 return false;
