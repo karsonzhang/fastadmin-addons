@@ -222,7 +222,7 @@ EOD;
             throw new Exception("addons.js文件没有写入权限");
         }
 
-        $file = APP_PATH . 'extra' . DS . '/addons.php';
+        $file = APP_PATH . 'extra' . DS . 'addons.php';
 
         $config = get_addon_autoload_config(true);
         if ($config['autoload'])
@@ -561,6 +561,25 @@ EOD;
         
         // 导入
         Service::importsql($name);
+
+        // 执行升级脚本
+        try
+        {
+            $class = get_addon_class($name);
+            if (class_exists($class))
+            {
+                $addon = new $class();
+
+                if (method_exists($class, "upgrade"))
+                {
+                    $addon->upgrade();
+                }
+            }
+        }
+        catch (Exception $e)
+        {
+            throw new Exception($e->getMessage());
+        }
         
         // 刷新
         Service::refresh();
