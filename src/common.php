@@ -118,6 +118,8 @@ function get_addon_list()
     foreach ($results as $name) {
         if ($name === '.' or $name === '..')
             continue;
+        if (is_file(ADDON_PATH . $name))
+            continue;
         $addonDir = ADDON_PATH . $name . DS;
         if (!is_dir($addonDir))
             continue;
