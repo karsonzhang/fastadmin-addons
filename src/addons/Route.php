@@ -25,9 +25,9 @@ class Route
         $convert = Config::get('url_convert');
         $filter = $convert ? 'strtolower' : 'trim';
 
-        $addon = $addon ? call_user_func($filter, $addon) : '';
-        $controller = $controller ? call_user_func($filter, $controller) : 'index';
-        $action = $action ? call_user_func($filter, $action) : 'index';
+        $addon = $addon ? trim(call_user_func($filter, $addon)) : '';
+        $controller = $controller ? trim(call_user_func($filter, $controller)) : 'index';
+        $action = $action ? trim(call_user_func($filter, $action)) : 'index';
 
         Hook::listen('addon_begin', $request);
         if (!empty($addon) && !empty($controller) && !empty($action)) {
