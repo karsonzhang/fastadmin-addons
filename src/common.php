@@ -93,7 +93,7 @@ Hook::add('app_init', function () {
             Hook::exec($v, 'app_init');
         }
     }
-    Hook::import($hooks, false);
+    Hook::import($hooks, true);
 });
 
 /**
