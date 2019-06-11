@@ -98,8 +98,8 @@ Hook::add('app_init', function () {
 
 /**
  * 处理插件钩子
- * @param string $hook 钩子名称
- * @param mixed $params 传入参数
+ * @param string $hook   钩子名称
+ * @param mixed  $params 传入参数
  * @return void
  */
 function hook($hook, $params = [])
@@ -134,6 +134,8 @@ function get_addon_list()
             continue;
 
         $info = Config::parse($info_file, '', "addon-info-{$name}");
+        if (!isset($info['name']))
+            continue;
         $info['url'] = addon_url($name);
         $list[$name] = $info;
     }
@@ -142,6 +144,7 @@ function get_addon_list()
 
 /**
  * 获得插件自动加载的配置
+ * @param bool $truncate 是否清除手动配置的钩子
  * @return array
  */
 function get_addon_autoload_config($truncate = false)
@@ -206,8 +209,8 @@ function get_addon_autoload_config($truncate = false)
 
 /**
  * 获取插件类的类名
- * @param $name 插件名
- * @param string $type 返回命名空间类型
+ * @param string $name  插件名
+ * @param string $type  返回命名空间类型
  * @param string $class 当前类名
  * @return string
  */
@@ -277,7 +280,7 @@ function get_addon_config($name)
 
 /**
  * 获取插件的单例
- * @param $name
+ * @param string $name 插件名
  * @return mixed|null
  */
 function get_addon_instance($name)
@@ -297,8 +300,8 @@ function get_addon_instance($name)
 
 /**
  * 插件显示内容里生成访问插件的url
- * @param $url 地址 格式：插件名/控制器/方法
- * @param array $vars 变量参数
+ * @param string      $url    地址 格式：插件名/控制器/方法
+ * @param array       $vars   变量参数
  * @param bool|string $suffix 生成的URL后缀
  * @param bool|string $domain 域名
  * @return bool|string
@@ -323,6 +326,7 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
     $dispatch = think\Request::instance()->dispatch();
     $indomain = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] ? true : false;
     $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : '';
+    $domain = $domainprefix && Config::get('url_domain_deploy') ? $domainprefix : $domain;
     $rewrite = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
     if ($rewrite) {
         $path = substr($url, stripos($url, '/') + 1);
@@ -352,13 +356,15 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
             $vars[substr($k, 1)] = $v;
         }
     }
-    return url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
+    $url = url($val, [], $suffix, $domain) . ($vars ? '?' . http_build_query($vars) : '');
+    $url = preg_replace("/\/((?!index)[\w]+)\.php\//i", "/", $url);
+    return $url;
 }
 
 /**
  * 设置基础配置信息
- * @param string $name 插件名
- * @param array $array
+ * @param string $name  插件名
+ * @param array  $array 配置数据
  * @return boolean
  * @throws Exception
  */
@@ -367,6 +373,9 @@ function set_addon_info($name, $array)
     $file = ADDON_PATH . $name . DIRECTORY_SEPARATOR . 'info.ini';
     $addon = get_addon_instance($name);
     $array = $addon->setInfo($name, $array);
+    if (!isset($array['name']) || !isset($array['title']) || !isset($array['version'])) {
+        throw new Exception("插件配置写入失败");
+    }
     $res = array();
     foreach ($array as $key => $val) {
         if (is_array($val)) {
@@ -389,9 +398,11 @@ function set_addon_info($name, $array)
 
 /**
  * 写入配置文件
- * @param string $name 插件名
- * @param array $config 配置数据
+ * @param string  $name      插件名
+ * @param array   $config    配置数据
  * @param boolean $writefile 是否写入配置文件
+ * @return bool
+ * @throws Exception
  */
 function set_addon_config($name, $config, $writefile = true)
 {
@@ -414,8 +425,8 @@ function set_addon_config($name, $config, $writefile = true)
 /**
  * 写入配置文件
  *
- * @param string $name 插件名
- * @param array $array
+ * @param string $name  插件名
+ * @param array  $array 配置数据
  * @return boolean
  * @throws Exception
  */

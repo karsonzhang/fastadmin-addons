@@ -62,7 +62,7 @@ class Controller extends \think\Controller
         $this->request = $request;
 
         //移除HTML标签
-        $this->request->filter('strip_tags');
+        $this->request->filter('trim,strip_tags,htmlspecialchars');
 
         // 是否自动转换控制器和操作名
         $convert = Config::get('url_convert');
