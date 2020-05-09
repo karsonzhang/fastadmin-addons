@@ -17,6 +17,48 @@ class Service
 {
 
     /**
+     * 安装本地插件
+     * 
+     * @param   string $name 插件名称
+     * @param   string $local_file 存放目录
+     * @return  string 插件安装目录
+     * @throws  Exception
+     */
+    public static function local($name, $local_file) 
+    {
+        if (!file_exists($local_file))
+            throw new Exception("Local file is not exits!\nPlease check again!");
+        
+        if (is_dir($local_file)) {
+            // 是否为文件夹，复制到当前目录下
+            $addonDir = ADDON_PATH . $name . DS;
+            copydirs($local_file, $addonDir);
+            return $addonDir;
+        } else {
+            // 是否为压缩文件.zip，复制并解压当插件目录
+            $ext = pathinfo($local_file, PATHINFO_EXTENSION);
+            if ($ext == 'zip' || $ext == 'ZIP'){
+                if (class_exists('ZipArchive')) {
+                    $dir = ADDON_PATH . $name . DS;
+                    $zip = new ZipArchive;
+                    if ($zip->open($local_file) !== TRUE) {
+                        throw new Exception('Unable to open the zip file');
+                    }
+                    if (!$zip->extractTo($dir)) {
+                        $zip->close();
+                        throw new Exception('Unable to extract the file');
+                    }
+                    $zip->close();
+                    return $dir;
+                }
+                throw new Exception("无法执行解压操作，请确保ZipArchive安装正确");
+            } 
+            throw new Exception("Unknown file type！\nPlease check file again!");
+        }
+
+    }
+
+    /**
      * 远程下载插件
      *
      * @param   string $name 插件名称
@@ -252,24 +294,27 @@ EOD;
      * @param   string $name 插件名称
      * @param   boolean $force 是否覆盖
      * @param   array $extend 扩展参数
+     * @param   string $local_file 本地文件或文件夹名
      * @return  boolean
      * @throws  Exception
      * @throws  AddonException
      */
-    public static function install($name, $force = false, $extend = [])
+    public static function install($name, $force = false, $extend = [], $local_file)
     {
         if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
             throw new Exception('Addon already exists');
         }
-
-        // 远程下载插件
-        $tmpFile = Service::download($name, $extend);
-
-        // 解压插件
-        $addonDir = Service::unzip($name);
-
-        // 移除临时文件
-        @unlink($tmpFile);
+        if ($local_file) {
+            // 如果是从本地安装，则直接复制或解压
+            $addonDir = Service::local($name, $local_file);
+        } else {
+            // 远程下载插件
+            $tmpFile = Service::download($name, $extend);
+            // 解压插件
+            $addonDir = Service::unzip($name);
+            // 移除临时文件
+            @unlink($tmpFile);
+        }
 
         try {
             // 检查插件是否完整
