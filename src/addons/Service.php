@@ -19,8 +19,8 @@ class Service
     /**
      * 远程下载插件
      *
-     * @param   string $name 插件名称
-     * @param   array $extend 扩展参数
+     * @param string $name   插件名称
+     * @param array  $extend 扩展参数
      * @return  string
      * @throws  AddonException
      * @throws  Exception
@@ -70,7 +70,7 @@ class Service
     /**
      * 解压插件
      *
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  string
      * @throws  Exception
      */
@@ -80,7 +80,7 @@ class Service
         $dir = ADDON_PATH . $name . DS;
         if (class_exists('ZipArchive')) {
             $zip = new ZipArchive;
-            if ($zip->open($file) !== TRUE) {
+            if ($zip->open($file) !== true) {
                 throw new Exception('Unable to open the zip file');
             }
             if (!$zip->extractTo($dir)) {
@@ -127,7 +127,7 @@ class Service
     /**
      * 检测插件是否完整
      *
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  boolean
      * @throws  Exception
      */
@@ -150,7 +150,7 @@ class Service
     /**
      * 是否有冲突
      *
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  boolean
      * @throws  AddonException
      */
@@ -168,7 +168,7 @@ class Service
     /**
      * 导入SQL
      *
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  boolean
      */
     public static function importsql($name)
@@ -178,8 +178,9 @@ class Service
             $lines = file($sqlFile);
             $templine = '';
             foreach ($lines as $line) {
-                if (substr($line, 0, 2) == '--' || $line == '' || substr($line, 0, 2) == '/*')
+                if (substr($line, 0, 2) == '--' || $line == '' || substr($line, 0, 2) == '/*') {
                     continue;
+                }
 
                 $templine .= $line;
                 if (substr(trim($line), -1, 1) == ';') {
@@ -230,15 +231,16 @@ EOD;
         $file = APP_PATH . 'extra' . DS . 'addons.php';
 
         $config = get_addon_autoload_config(true);
-        if ($config['autoload'])
+        if ($config['autoload']) {
             return;
+        }
 
         if (!is_really_writable($file)) {
             throw new Exception("addons.php文件没有写入权限");
         }
 
         if ($handle = fopen($file, 'w')) {
-            fwrite($handle, "<?php\n\n" . "return " . var_export($config, TRUE) . ";");
+            fwrite($handle, "<?php\n\n" . "return " . var_export($config, true) . ";");
             fclose($handle);
         } else {
             throw new Exception("文件没有写入权限");
@@ -249,9 +251,9 @@ EOD;
     /**
      * 安装插件
      *
-     * @param   string $name 插件名称
-     * @param   boolean $force 是否覆盖
-     * @param   array $extend 扩展参数
+     * @param string  $name   插件名称
+     * @param boolean $force  是否覆盖
+     * @param array   $extend 扩展参数
      * @return  boolean
      * @throws  Exception
      * @throws  AddonException
@@ -327,8 +329,8 @@ EOD;
     /**
      * 卸载插件
      *
-     * @param   string $name
-     * @param   boolean $force 是否强制卸载
+     * @param string  $name
+     * @param boolean $force 是否强制卸载
      * @return  boolean
      * @throws  Exception
      */
@@ -377,8 +379,8 @@ EOD;
 
     /**
      * 启用
-     * @param   string $name 插件名称
-     * @param   boolean $force 是否强制覆盖
+     * @param string  $name  插件名称
+     * @param boolean $force 是否强制覆盖
      * @return  boolean
      */
     public static function enable($name, $force = false)
@@ -432,8 +434,8 @@ EOD;
     /**
      * 禁用
      *
-     * @param   string $name 插件名称
-     * @param   boolean $force 是否强制禁用
+     * @param string  $name  插件名称
+     * @param boolean $force 是否强制禁用
      * @return  boolean
      * @throws  Exception
      */
@@ -452,10 +454,18 @@ EOD;
             rmdirs($destAssetsDir);
         }
 
+        $dirs = [];
         // 移除插件全局资源文件
         $list = Service::getGlobalFiles($name);
         foreach ($list as $k => $v) {
+            $dirs[] = dirname(ROOT_PATH . $v);
             @unlink(ROOT_PATH . $v);
+        }
+
+        // 移除插件空目录
+        $dirs = array_filter(array_unique($dirs));
+        foreach ($dirs as $k => $v) {
+            remove_empty_folder($v);
         }
 
         $info = get_addon_info($name);
@@ -486,8 +496,8 @@ EOD;
     /**
      * 升级插件
      *
-     * @param   string $name 插件名称
-     * @param   array $extend 扩展参数
+     * @param string $name   插件名称
+     * @param array  $extend 扩展参数
      */
     public static function upgrade($name, $extend = [])
     {
@@ -543,7 +553,7 @@ EOD;
     /**
      * 获取插件在全局的文件
      *
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  array
      */
     public static function getGlobalFiles($name, $onlyconflict = false)
@@ -553,8 +563,9 @@ EOD;
         // 扫描插件目录是否有覆盖的文件
         foreach (self::getCheckDirs() as $k => $dir) {
             $checkDir = ROOT_PATH . DS . $dir . DS;
-            if (!is_dir($checkDir))
+            if (!is_dir($checkDir)) {
                 continue;
+            }
             //检测到存在插件外目录
             if (is_dir($addonDir . $dir)) {
                 //匹配出所有的文件
@@ -585,7 +596,7 @@ EOD;
 
     /**
      * 获取插件源资源文件夹
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  string
      */
     protected static function getSourceAssetsDir($name)
@@ -595,7 +606,7 @@ EOD;
 
     /**
      * 获取插件目标资源文件夹
-     * @param   string $name 插件名称
+     * @param string $name 插件名称
      * @return  string
      */
     protected static function getDestAssetsDir($name)

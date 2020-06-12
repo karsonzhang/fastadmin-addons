@@ -61,8 +61,9 @@ Hook::add('app_init', function () {
             $domains[$domain] = $drules ? $drules : [];
             $domains[$domain][':controller/[:action]'] = sprintf($execute . '&indomain=1', $addon, ":controller", ":action");
         } else {
-            if (!$v)
+            if (!$v) {
                 continue;
+            }
             list($addon, $controller, $action) = explode('/', $v);
             $rules[$k] = sprintf($execute, $addon, $controller, $action);
         }
@@ -108,6 +109,25 @@ function hook($hook, $params = [])
 }
 
 /**
+ * 移除空目录
+ * @param string $dir 目录
+ */
+function remove_empty_folder($dir)
+{
+    try {
+        $isDirEmpty = !(new \FilesystemIterator($dir))->valid();
+        if ($isDirEmpty) {
+            @rmdir($dir);
+            remove_empty_folder(dirname($dir));
+        }
+    } catch (\UnexpectedValueException $e) {
+
+    } catch (\Exception $e) {
+
+    }
+}
+
+/**
  * 获得插件列表
  * @return array
  */
@@ -116,26 +136,32 @@ function get_addon_list()
     $results = scandir(ADDON_PATH);
     $list = [];
     foreach ($results as $name) {
-        if ($name === '.' or $name === '..')
+        if ($name === '.' or $name === '..') {
             continue;
-        if (is_file(ADDON_PATH . $name))
+        }
+        if (is_file(ADDON_PATH . $name)) {
             continue;
+        }
         $addonDir = ADDON_PATH . $name . DS;
-        if (!is_dir($addonDir))
+        if (!is_dir($addonDir)) {
             continue;
+        }
 
-        if (!is_file($addonDir . ucfirst($name) . '.php'))
+        if (!is_file($addonDir . ucfirst($name) . '.php')) {
             continue;
+        }
 
         //这里不采用get_addon_info是因为会有缓存
         //$info = get_addon_info($name);
         $info_file = $addonDir . 'info.ini';
-        if (!is_file($info_file))
+        if (!is_file($info_file)) {
             continue;
+        }
 
         $info = Config::parse($info_file, '', "addon-info-{$name}");
-        if (!isset($info['name']))
+        if (!isset($info['name'])) {
             continue;
+        }
         $info['url'] = addon_url($name);
         $list[$name] = $info;
     }
@@ -155,6 +181,10 @@ function get_addon_autoload_config($truncate = false)
         // 清空手动配置的钩子
         $config['hooks'] = [];
     }
+
+    // 伪静态优先级
+    $priority = isset($config['priority']) && $config['priority'] ? is_array($config['priority']) ? $config['priority'] : explode(',', $config['priority']) : [];
+
     $route = [];
     // 读取插件目录及钩子列表
     $base = get_class_methods("\\think\\Addons");
@@ -163,9 +193,21 @@ function get_addon_autoload_config($truncate = false)
     $url_domain_deploy = Config::get('url_domain_deploy');
     $addons = get_addon_list();
     $domain = [];
-    foreach ($addons as $name => $addon) {
-        if (!$addon['state'])
+
+    $priority = array_merge($priority, array_keys($addons));
+
+    $orderedAddons = array();
+    foreach ($priority as $key) {
+        if (!isset($addons[$key])) {
             continue;
+        }
+        $orderedAddons[$key] = $addons[$key];
+    }
+
+    foreach ($orderedAddons as $name => $addon) {
+        if (!$addon['state']) {
+            continue;
+        }
 
         // 读取出所有公共方法
         $methods = (array)get_class_methods("\\addons\\" . $name . "\\" . ucfirst($name));
@@ -380,16 +422,18 @@ function set_addon_info($name, $array)
     foreach ($array as $key => $val) {
         if (is_array($val)) {
             $res[] = "[$key]";
-            foreach ($val as $skey => $sval)
+            foreach ($val as $skey => $sval) {
                 $res[] = "$skey = " . (is_numeric($sval) ? $sval : $sval);
-        } else
+            }
+        } else {
             $res[] = "$key = " . (is_numeric($val) ? $val : $val);
+        }
     }
     if ($handle = fopen($file, 'w')) {
         fwrite($handle, implode("\n", $res) . "\n");
         fclose($handle);
         //清空当前配置缓存
-        Config::set($name, NULL, 'addoninfo');
+        Config::set($name, null, 'addoninfo');
     } else {
         throw new Exception("文件没有写入权限");
     }
@@ -437,7 +481,7 @@ function set_addon_fullconfig($name, $array)
         throw new Exception("文件没有写入权限");
     }
     if ($handle = fopen($file, 'w')) {
-        fwrite($handle, "<?php\n\n" . "return " . var_export($array, TRUE) . ";\n");
+        fwrite($handle, "<?php\n\n" . "return " . var_export($array, true) . ";\n");
         fclose($handle);
     } else {
         throw new Exception("文件没有写入权限");
