@@ -270,6 +270,12 @@ EOD;
         // 解压插件
         $addonDir = Service::unzip($name);
 
+        // 兼容Mac本地打包的插件，去除多余目录
+        $macOsxDir = $addonDir . '__MACOSX';
+        if (is_dir($macOsxDir)) {
+            @rmdirs($macOsxDir);
+        }
+
         // 移除临时文件
         @unlink($tmpFile);
 
