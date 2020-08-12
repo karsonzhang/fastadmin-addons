@@ -532,14 +532,26 @@ EOD;
 
         // 执行升级脚本
         try {
-            $class = get_addon_class($name);
-            if (class_exists($class)) {
-                $addon = new $class();
+            $addonName = ucfirst($name);
+            //创建临时类用于调用升级的方法
+            $sourceFile = ADDON_PATH . $name . DS . $addonName . ".php";
+            $destFile = ADDON_PATH . $name . DS . $addonName . "Upgrade.php";
 
-                if (method_exists($class, "upgrade")) {
-                    $addon->upgrade();
-                }
+            $classContent = str_replace("class {$addonName} extends", "class {$addonName}Upgrade extends", file_get_contents($sourceFile));
+
+            //创建临时的类文件
+            file_put_contents($destFile, $classContent);
+
+            $className = "\\addons\\" . $name . "\\" . $addonName . "Upgrade";
+            $addon = new $className($name);
+
+            //调用升级的方法
+            if (method_exists($addon, "upgrade")) {
+                $addon->upgrade();
             }
+
+            //移除临时文件
+            @unlink($destFile);
         } catch (Exception $e) {
             throw new Exception($e->getMessage());
         }

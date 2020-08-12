@@ -8,7 +8,7 @@ use think\View;
 /**
  * 插件基类
  * Class Addons
- * @author Byron Sampson <xiaobo.sun@qq.com>
+ * @author  Byron Sampson <xiaobo.sun@qq.com>
  * @package think\addons
  */
 abstract class Addons
@@ -20,6 +20,8 @@ abstract class Addons
     protected $error;
     // 插件目录
     public $addons_path = '';
+    // 插件标识
+    protected $addonName = '';
     // 插件配置作用域
     protected $configRange = 'addonconfig';
     // 插件信息作用域
@@ -29,9 +31,13 @@ abstract class Addons
      * 架构函数
      * @access public
      */
-    public function __construct()
+    public function __construct($name = null)
     {
-        $name = $this->getName();
+        $name = is_null($name) ? $this->getName() : $name;
+
+        //设置插件标识
+        $this->addonName = $name;
+
         // 获取当前插件目录
         $this->addons_path = ADDON_PATH . $name . DS;
 
@@ -51,15 +57,18 @@ abstract class Addons
      * @param string $name
      * @return array
      */
-    final public function getInfo($name = '')
+    final public function getInfo($name = '', $force = false)
     {
         if (empty($name)) {
             $name = $this->getName();
         }
-        $info = Config::get($name, $this->infoRange);
-        if ($info) {
-            return $info;
+        if (!$force) {
+            $info = Config::get($name, $this->infoRange);
+            if ($info) {
+                return $info;
+            }
         }
+        $info = [];
         $info_file = $this->addons_path . 'info.ini';
         if (is_file($info_file)) {
             $info = Config::parse($info_file, '', $name, $this->infoRange);
@@ -75,15 +84,18 @@ abstract class Addons
      * @param string $name 可选模块名
      * @return array
      */
-    final public function getConfig($name = '')
+    final public function getConfig($name = '', $force = false)
     {
         if (empty($name)) {
             $name = $this->getName();
         }
-        $config = Config::get($name, $this->configRange);
-        if ($config) {
-            return $config;
+        if (!$force) {
+            $config = Config::get($name, $this->configRange);
+            if ($config) {
+                return $config;
+            }
         }
+        $config = [];
         $config_file = $this->addons_path . 'config.php';
         if (is_file($config_file)) {
             $temp_arr = include $config_file;
@@ -99,7 +111,7 @@ abstract class Addons
 
     /**
      * 设置配置数据
-     * @param $name
+     * @param       $name
      * @param array $value
      * @return array
      */
@@ -116,7 +128,7 @@ abstract class Addons
 
     /**
      * 设置插件信息数据
-     * @param $name
+     * @param       $name
      * @param array $value
      * @return array
      */
@@ -155,8 +167,20 @@ abstract class Addons
      */
     final public function getName()
     {
+        if ($this->addonName) {
+            return $this->addonName;
+        }
         $data = explode('\\', get_class($this));
         return strtolower(array_pop($data));
+    }
+
+    /**
+     * 设置插件标识
+     * @param $name
+     */
+    final public function setName($name)
+    {
+        $this->addonName = $name;
     }
 
     /**
@@ -179,9 +203,9 @@ abstract class Addons
      * 加载模板和页面输出 可以返回输出内容
      * @access public
      * @param string $template 模板文件名或者内容
-     * @param array $vars 模板输出变量
-     * @param array $replace 替换内容
-     * @param array $config 模板参数
+     * @param array  $vars     模板输出变量
+     * @param array  $replace  替换内容
+     * @param array  $config   模板参数
      * @return mixed
      * @throws \Exception
      */
@@ -200,9 +224,9 @@ abstract class Addons
      * 渲染内容输出
      * @access public
      * @param string $content 内容
-     * @param array $vars 模板输出变量
-     * @param array $replace 替换内容
-     * @param array $config 模板参数
+     * @param array  $vars    模板输出变量
+     * @param array  $replace 替换内容
+     * @param array  $config  模板参数
      * @return mixed
      */
     public function display($content, $vars = [], $replace = [], $config = [])
@@ -217,7 +241,7 @@ abstract class Addons
      * 渲染内容输出
      * @access public
      * @param string $content 内容
-     * @param array $vars 模板输出变量
+     * @param array  $vars    模板输出变量
      * @return mixed
      */
     public function show($content, $vars = [])
@@ -231,7 +255,7 @@ abstract class Addons
     /**
      * 模板变量赋值
      * @access protected
-     * @param mixed $name 要显示的模板变量
+     * @param mixed $name  要显示的模板变量
      * @param mixed $value 变量的值
      * @return void
      */
