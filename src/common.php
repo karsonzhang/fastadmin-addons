@@ -351,7 +351,7 @@ function get_addon_tables($name)
     if (!$addonInfo) {
         return [];
     }
-    $regex = "/^CREATE TABLE (IF NOT EXISTS )?`?([a-zA-Z_]+)`?/mi";
+    $regex = "/^CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?`?([a-zA-Z_]+)`?/mi";
     $sqlFile = ADDON_PATH . $name . DS . 'install.sql';
     $tables = [];
     if (is_file($sqlFile)) {
