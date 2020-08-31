@@ -8,6 +8,7 @@ use think\Hook;
 use think\Lang;
 use think\Loader;
 use think\Request;
+use think\Validate;
 
 /**
  * 插件基类控制器
@@ -196,6 +197,22 @@ class Controller extends \think\Controller
             }
         }
         return parent::fetch($template, $vars, $replace, $config);
+    }
+
+    /**
+     * 刷新Token
+     */
+    protected function token()
+    {
+        $token = $this->request->param('__token__');
+
+        //验证Token
+        if (!Validate::make()->check(['__token__' => $token], ['__token__' => 'require|token'])) {
+            $this->error(__('Token verification error'), '', ['__token__' => $this->request->token()]);
+        }
+
+        //刷新Token
+        $this->request->token();
     }
 
 }
