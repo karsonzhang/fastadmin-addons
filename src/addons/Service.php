@@ -228,7 +228,7 @@ EOD;
             throw new Exception("addons.js文件没有写入权限");
         }
 
-        $file = APP_PATH . 'extra' . DS . 'addons.php';
+        $file = CONF_PATH . 'extra' . DS . 'addons.php';
 
         $config = get_addon_autoload_config(true);
         if ($config['autoload']) {
