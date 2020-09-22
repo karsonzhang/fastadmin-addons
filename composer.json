@@ -20,7 +20,7 @@
     },
     "require": {
         "php": ">=7.0.0",
-        "symfony/var-exporter ": "^4.4.13"
+        "symfony/var-exporter": "^4.4.13"
     },
     "autoload": {
         "psr-4": {
