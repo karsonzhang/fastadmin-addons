@@ -4,7 +4,7 @@
     "homepage": "https://github.com/karsonzhang/fastadmin-addons",
     "license": "Apache-2.0",
     "minimum-stability": "dev",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "authors": [
         {
             "name": "Karson",
@@ -19,7 +19,8 @@
         "issues": "https://github.com/karsonzhang/fastadmin-addons/issues"
     },
     "require": {
-        "php": ">=7.0.0"
+        "php": ">=7.0.0",
+        "symfony/var-exporter ": "^4.4.13"
     },
     "autoload": {
         "psr-4": {

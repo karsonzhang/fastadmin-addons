@@ -55,8 +55,7 @@ class Controller extends \think\Controller
      */
     public function __construct(Request $request = null)
     {
-        if (is_null($request))
-        {
+        if (is_null($request)) {
             $request = Request::instance();
         }
         // 生成request对象
@@ -74,15 +73,12 @@ class Controller extends \think\Controller
         $dispatch = $this->request->dispatch();
         $var = isset($dispatch['var']) ? $dispatch['var'] : [];
         $var = array_merge($param, $var);
-        if (isset($dispatch['method']) && substr($dispatch['method'][0], 0, 7) == "\\addons")
-        {
+        if (isset($dispatch['method']) && substr($dispatch['method'][0], 0, 7) == "\\addons") {
             $arr = explode("\\", $dispatch['method'][0]);
             $addon = strtolower($arr[2]);
             $controller = strtolower(end($arr));
             $action = $dispatch['method'][1];
-        }
-        else
-        {
+        } else {
             $addon = isset($var['addon']) ? $var['addon'] : '';
             $controller = isset($var['controller']) ? $var['controller'] : '';
             $action = isset($var['action']) ? $var['action'] : '';
@@ -122,37 +118,29 @@ class Controller extends \think\Controller
         // 设置当前请求的URI
         $this->auth->setRequestUri($path);
         // 检测是否需要验证登录
-        if (!$this->auth->match($this->noNeedLogin))
-        {
+        if (!$this->auth->match($this->noNeedLogin)) {
             //初始化
             $this->auth->init($token);
             //检测是否登录
-            if (!$this->auth->isLogin())
-            {
+            if (!$this->auth->isLogin()) {
                 $this->error(__('Please login first'), 'index/user/login');
             }
             // 判断是否需要验证权限
-            if (!$this->auth->match($this->noNeedRight))
-            {
+            if (!$this->auth->match($this->noNeedRight)) {
                 // 判断控制器和方法判断是否有对应权限
-                if (!$this->auth->check($path))
-                {
+                if (!$this->auth->check($path)) {
                     $this->error(__('You have no permission'));
                 }
             }
-        }
-        else
-        {
+        } else {
             // 如果有传递token才验证是否登录状态
-            if ($token)
-            {
+            if ($token) {
                 $this->auth->init($token);
             }
         }
 
         // 如果有使用模板布局
-        if ($this->layout)
-        {
+        if ($this->layout) {
             $this->view->engine->layout('layout/' . $this->layout);
         }
 
@@ -174,25 +162,21 @@ class Controller extends \think\Controller
      * 加载模板输出
      * @access protected
      * @param string $template 模板文件名
-     * @param array $vars 模板输出变量
-     * @param array $replace 模板替换
-     * @param array $config 模板参数
+     * @param array  $vars     模板输出变量
+     * @param array  $replace  模板替换
+     * @param array  $config   模板参数
      * @return mixed
      */
     protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
         $controller = Loader::parseName($this->controller);
-        if ('think' == strtolower(Config::get('template.type')) && $controller && 0 !== strpos($template, '/'))
-        {
+        if ('think' == strtolower(Config::get('template.type')) && $controller && 0 !== strpos($template, '/')) {
             $depr = Config::get('template.view_depr');
             $template = str_replace(['/', ':'], $depr, $template);
-            if ('' == $template)
-            {
+            if ('' == $template) {
                 // 如果模板文件名为空 按照默认规则定位
                 $template = str_replace('.', DS, $controller) . $depr . $this->action;
-            }
-            elseif (false === strpos($template, $depr))
-            {
+            } elseif (false === strpos($template, $depr)) {
                 $template = str_replace('.', DS, $controller) . $depr . $template;
             }
         }

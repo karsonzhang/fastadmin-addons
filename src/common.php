@@ -1,5 +1,6 @@
 <?php
 
+use Symfony\Component\VarExporter\VarExporter;
 use think\App;
 use think\Cache;
 use think\Config;
@@ -438,7 +439,7 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
  */
 function set_addon_info($name, $array)
 {
-    $file = ADDON_PATH . $name . DIRECTORY_SEPARATOR . 'info.ini';
+    $file = ADDON_PATH . $name . DS . 'info.ini';
     $addon = get_addon_instance($name);
     $array = $addon->setInfo($name, $array);
     if (!isset($array['name']) || !isset($array['title']) || !isset($array['version'])) {
@@ -502,12 +503,12 @@ function set_addon_config($name, $config, $writefile = true)
  */
 function set_addon_fullconfig($name, $array)
 {
-    $file = ADDON_PATH . $name . DIRECTORY_SEPARATOR . 'config.php';
+    $file = ADDON_PATH . $name . DS . 'config.php';
     if (!is_really_writable($file)) {
         throw new Exception("文件没有写入权限");
     }
     if ($handle = fopen($file, 'w')) {
-        fwrite($handle, "<?php\n\n" . "return " . var_export($array, true) . ";\n");
+        fwrite($handle, "<?php\n\n" . "return " . VarExporter::export($array) . ";\n");
         fclose($handle);
     } else {
         throw new Exception("文件没有写入权限");
