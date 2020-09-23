@@ -20,6 +20,7 @@
     },
     "require": {
         "php": ">=7.0.0",
+        "nelexa/zip": "^3.3",
         "symfony/var-exporter": "^4.4.13"
     },
     "autoload": {

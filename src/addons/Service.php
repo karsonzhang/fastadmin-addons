@@ -25,8 +25,6 @@ class Service
      * @param string $name   插件名称
      * @param array  $extend 扩展参数
      * @return  string
-     * @throws  AddonException
-     * @throws  Exception
      */
     public static function download($name, $extend = [])
     {
@@ -54,7 +52,7 @@ class Service
                 }
             }
         } catch (\GuzzleHttp\Exception\TransferException $e) {
-            throw new Exception("插件下载失败");
+            throw new Exception("Addon package download failed");
         }
 
         if ($write = fopen($tmpFile, 'w')) {
@@ -63,7 +61,7 @@ class Service
             \think\Log::record(\think\Debug::getUseTime());
             return $tmpFile;
         }
-        throw new Exception("没有权限写入临时文件");
+        throw new Exception("No permission to write temporary files");
     }
 
     /**
@@ -125,7 +123,6 @@ class Service
         $tmpFile = $addonsTempDir . $info->getSaveName();
 
         $zip = new ZipFile();
-
         try {
 
             // 打开插件压缩包
@@ -284,11 +281,11 @@ class Service
         }
         $addonClass = get_addon_class($name);
         if (!$addonClass) {
-            throw new Exception("插件主启动程序不存在");
+            throw new Exception("The addon file does not exist");
         }
         $addon = new $addonClass();
         if (!$addon->checkInfo()) {
-            throw new Exception("配置文件不完整");
+            throw new Exception("The configuration file content is incorrect");
         }
         return true;
     }
@@ -306,7 +303,7 @@ class Service
         $list = self::getGlobalFiles($name, true);
         if ($list) {
             //发现冲突文件，抛出异常
-            throw new AddonException("发现冲突文件", -3, ['conflictlist' => $list]);
+            throw new AddonException(__("Conflicting file found"), -3, ['conflictlist' => $list]);
         }
         return true;
     }
@@ -319,7 +316,7 @@ class Service
      */
     public static function importsql($name)
     {
-        $sqlFile = ADDON_PATH . $name . DS . 'install.sql';
+        $sqlFile = self::getAddonDir($name) . 'install.sql';
         if (is_file($sqlFile)) {
             $lines = file($sqlFile);
             $templine = '';
@@ -371,7 +368,7 @@ EOD;
             fwrite($handle, str_replace("{__JS__}", implode("\n", $bootstrapArr), $tpl));
             fclose($handle);
         } else {
-            throw new Exception("addons.js文件没有写入权限");
+            throw new Exception(__("Unable to open file '%s' for writing", "addons.js"));
         }
 
         $file = self::getExtraAddonsFile();
@@ -382,14 +379,14 @@ EOD;
         }
 
         if (!is_really_writable($file)) {
-            throw new Exception("addons.php文件没有写入权限");
+            throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
 
         if ($handle = fopen($file, 'w')) {
             fwrite($handle, "<?php\n\n" . "return " . VarExporter::export($config) . ";\n");
             fclose($handle);
         } else {
-            throw new Exception("文件没有写入权限");
+            throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
         return true;
     }
@@ -613,7 +610,7 @@ EOD;
 
         $file = self::getExtraAddonsFile();
         if (!is_really_writable($file)) {
-            throw new Exception("路由配置文件没有写入权限");
+            throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
 
         if (!$force) {
