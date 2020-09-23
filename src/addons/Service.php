@@ -532,7 +532,7 @@ EOD;
                 $zip = new ZipFile();
                 try {
                     foreach ($conflictFiles as $k => $v) {
-                        $zip->addFile($file, $v);
+                        $zip->addFile(ROOT_PATH . $v, $v);
                     }
                     $addonsBackupDir = self::getAddonsBackupDir();
                     $zip->saveAsFile($addonsBackupDir . $name . "-conflict-enable-" . date("YmdHis") . ".zip");
@@ -613,7 +613,7 @@ EOD;
                 $zip = new ZipFile();
                 try {
                     foreach ($conflictFiles as $k => $v) {
-                        $zip->addFile($file, $v);
+                        $zip->addFile(ROOT_PATH . $v, $v);
                     }
                     $addonsBackupDir = self::getAddonsBackupDir();
                     $zip->saveAsFile($addonsBackupDir . $name . "-conflict-disable-" . date("YmdHis") . ".zip");
