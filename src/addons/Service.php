@@ -482,12 +482,6 @@ EOD;
             Service::noconflict($name);
         }
 
-        // 移除插件基础资源目录
-        $destAssetsDir = self::getDestAssetsDir($name);
-        if (is_dir($destAssetsDir)) {
-            @rmdirs($destAssetsDir);
-        }
-
         // 移除插件全局资源文件
         if ($force) {
             $list = Service::getGlobalFiles($name);
@@ -533,21 +527,15 @@ EOD;
 
         //备份冲突文件
         if (config('fastadmin.backup_global_files')) {
-            $list = self::getGlobalFiles($name, true);
-            if ($list) {
+            $conflictFiles = self::getGlobalFiles($name, true);
+            if ($conflictFiles) {
                 $zip = new ZipFile();
                 try {
-                    // 移除插件全局资源文件
-                    foreach ($list as $k => $v) {
-                        $file = ROOT_PATH . $v;
-                        if (is_file($file)) {
-                            $zip->addFile($file, $v);
-                        }
+                    foreach ($conflictFiles as $k => $v) {
+                        $zip->addFile($file, $v);
                     }
-                    if (count($zip->getEntries()) > 0) {
-                        $addonsBackupDir = self::getAddonsBackupDir();
-                        $zip->saveAsFile($addonsBackupDir . $name . "-conflict-enable-" . date("YmdHis") . ".zip");
-                    }
+                    $addonsBackupDir = self::getAddonsBackupDir();
+                    $zip->saveAsFile($addonsBackupDir . $name . "-conflict-enable-" . date("YmdHis") . ".zip");
                 } catch (Exception $e) {
 
                 } finally {
@@ -557,13 +545,14 @@ EOD;
         }
 
         $addonDir = self::getAddonDir($name);
-
-        // 复制文件
         $sourceAssetsDir = self::getSourceAssetsDir($name);
         $destAssetsDir = self::getDestAssetsDir($name);
+
+        // 复制文件
         if (is_dir($sourceAssetsDir)) {
             copydirs($sourceAssetsDir, $destAssetsDir);
         }
+        // 复制application和public到全局
         foreach (self::getCheckDirs() as $k => $dir) {
             if (is_dir($addonDir . $dir)) {
                 copydirs($addonDir . $dir, ROOT_PATH . $dir);
@@ -617,41 +606,30 @@ EOD;
             Service::noconflict($name);
         }
 
-        //插件资源目录
-        $destAssetsDir = self::getDestAssetsDir($name);
-
         if (config('fastadmin.backup_global_files')) {
-            //备份插件全局文件
-            $zip = new ZipFile();
-            try {
-                if (is_dir($destAssetsDir)) {
-                    $zip->addDirRecursive($destAssetsDir, 'assets');
-                }
-                // 移除插件全局资源文件
-                $list = Service::getGlobalFiles($name);
-                foreach ($list as $k => $v) {
-                    $file = ROOT_PATH . $v;
-                    if (is_file($file)) {
+            //仅备份修改过的文件
+            $conflictFiles = Service::getGlobalFiles($name, true);
+            if ($conflictFiles) {
+                $zip = new ZipFile();
+                try {
+                    foreach ($conflictFiles as $k => $v) {
                         $zip->addFile($file, $v);
                     }
-                }
-                if (count($zip->getEntries()) > 0) {
                     $addonsBackupDir = self::getAddonsBackupDir();
                     $zip->saveAsFile($addonsBackupDir . $name . "-conflict-disable-" . date("YmdHis") . ".zip");
-                }
-            } catch (Exception $e) {
+                } catch (Exception $e) {
 
-            } finally {
-                $zip->close();
+                } finally {
+                    $zip->close();
+                }
             }
         }
 
-        // 移除插件基础资源目录
-        if (is_dir($destAssetsDir)) {
-            rmdirs($destAssetsDir);
-        }
+        //插件资源目录
+        $destAssetsDir = self::getDestAssetsDir($name);
 
         // 移除插件全局文件
+        $list = Service::getGlobalFiles($name);
         $dirs = [];
         foreach ($list as $k => $v) {
             $file = ROOT_PATH . $v;
@@ -767,40 +745,48 @@ EOD;
     /**
      * 获取插件在全局的文件
      *
-     * @param string $name 插件名称
+     * @param string  $name         插件名称
+     * @param boolean $onlyconflict 是否只返回冲突文件
      * @return  array
      */
     public static function getGlobalFiles($name, $onlyconflict = false)
     {
         $list = [];
         $addonDir = self::getAddonDir($name);
+        $checkDirList = self::getCheckDirs();
+        $checkDirList = array_merge($checkDirList, ['assets']);
+
+        $assetDir = self::getDestAssetsDir($name);
+
         // 扫描插件目录是否有覆盖的文件
-        foreach (self::getCheckDirs() as $k => $dir) {
-            $checkDir = ROOT_PATH . DS . $dir . DS;
-            if (!is_dir($checkDir)) {
+        foreach ($checkDirList as $k => $dirName) {
+            //检测目录是否存在
+            if (!is_dir($addonDir . $dirName)) {
                 continue;
             }
-            //检测到存在插件外目录
-            if (is_dir($addonDir . $dir)) {
-                //匹配出所有的文件
-                $files = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($addonDir . $dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
-                );
+            //匹配出所有的文件
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($addonDir . $dirName, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
+            );
 
-                foreach ($files as $fileinfo) {
-                    if ($fileinfo->isFile()) {
-                        $filePath = $fileinfo->getPathName();
+            foreach ($files as $fileinfo) {
+                if ($fileinfo->isFile()) {
+                    $filePath = $fileinfo->getPathName();
+                    //如果名称为assets需要做特殊处理
+                    if ($dirName === 'assets') {
+                        $path = str_replace(ROOT_PATH, '', $assetDir) . str_replace($addonDir . $dirName . DS, '', $filePath);
+                    } else {
                         $path = str_replace($addonDir, '', $filePath);
-                        if ($onlyconflict) {
-                            $destPath = ROOT_PATH . $path;
-                            if (is_file($destPath)) {
-                                if (filesize($filePath) != filesize($destPath) || md5_file($filePath) != md5_file($destPath)) {
-                                    $list[] = $path;
-                                }
+                    }
+                    if ($onlyconflict) {
+                        $destPath = ROOT_PATH . $path;
+                        if (is_file($destPath)) {
+                            if (filesize($filePath) != filesize($destPath) || md5_file($filePath) != md5_file($destPath)) {
+                                $list[] = $path;
                             }
-                        } else {
-                            $list[] = $path;
                         }
+                    } else {
+                        $list[] = $path;
                     }
                 }
             }
