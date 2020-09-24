@@ -116,13 +116,14 @@ class Service
         if (!$file || !$file instanceof \think\File) {
             throw new Exception('No file upload or server upload limit exceeded');
         }
-        $info = $file->rule('uniqid')->validate(['size' => 102400000, 'ext' => 'zip,fastaddon'])->move($addonsTempDir);
-        if (!$info) {
+        $uploadFile = $file->rule('uniqid')->validate(['size' => 102400000, 'ext' => 'zip,fastaddon'])->move($addonsTempDir);
+        if (!$uploadFile) {
             // 上传失败获取错误信息
             throw new Exception(__($file->getError()));
         }
-        $tmpFile = $addonsTempDir . $info->getSaveName();
+        $tmpFile = $addonsTempDir . $uploadFile->getSaveName();
 
+        $info = [];
         $zip = new ZipFile();
         try {
 
@@ -199,18 +200,19 @@ class Service
 
             //导入SQL
             Service::importsql($name);
-
-            $info['config'] = get_addon_config($name) ? 1 : 0;
-            throw new AddonException('Offline installed tips', 1, ['addon' => $info]);
         } catch (AddonException $e) {
             throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
         } catch (Exception $e) {
             throw new Exception(__($e->getMessage()));
         } finally {
             $zip->close();
-            unset($info);
+            unset($uploadFile);
             @unlink($tmpFile);
         }
+
+        $info['config'] = get_addon_config($name) ? 1 : 0;
+        $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
+        return $info;
     }
 
     /**
@@ -356,7 +358,7 @@ class Service
         $addons = get_addon_list();
         $bootstrapArr = [];
         foreach ($addons as $name => $addon) {
-            $bootstrapFile = ADDON_PATH . $name . DS . 'bootstrap.js';
+            $bootstrapFile = self::getBootstrapFile($name);
             if ($addon['state'] && is_file($bootstrapFile)) {
                 $bootstrapArr[] = file_get_contents($bootstrapFile);
             }
@@ -436,10 +438,11 @@ EOD;
             @unlink($tmpFile);
         }
 
+        // 默认启用该插件
+        $info = get_addon_info($name);
+
         Db::startTrans();
         try {
-            // 默认启用该插件
-            $info = get_addon_info($name);
             if (!$info['state']) {
                 $info['state'] = 1;
                 set_addon_info($name, $info);
@@ -464,7 +467,9 @@ EOD;
         // 启用插件
         Service::enable($name, true);
 
-        return true;
+        $info['config'] = get_addon_config($name) ? 1 : 0;
+        $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
+        return $info;
     }
 
     /**
@@ -792,7 +797,13 @@ EOD;
 
         // 刷新
         Service::refresh();
-        return true;
+
+        //必须变更版本号
+        $info['version'] = isset($extend['version']) ? $extend['version'] : $info['version'];
+
+        $info['config'] = get_addon_config($name) ? 1 : 0;
+        $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
+        return $info;
     }
 
     /**
@@ -876,6 +887,15 @@ EOD;
     public static function getExtraAddonsFile()
     {
         return APP_PATH . 'extra' . DS . 'addons.php';
+    }
+
+    /**
+     * 获取bootstrap.js路径
+     * @return string
+     */
+    public static function getBootstrapFile($name)
+    {
+        return ADDON_PATH . $name . DS . 'bootstrap.js';
     }
 
     /**
