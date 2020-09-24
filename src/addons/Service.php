@@ -669,6 +669,7 @@ EOD;
                     }
                     copy(ROOT_PATH . $item, $addonDir . $item);
                 }
+                $list = $config['files'];
             }
             //复制插件目录资源
             if (is_dir($destAssetsDir)) {
