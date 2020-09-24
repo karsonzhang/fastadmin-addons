@@ -4,6 +4,7 @@ namespace think\addons;
 
 use fast\Http;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\TransferException;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
@@ -51,7 +52,7 @@ class Service
                     throw new AddonException($json['msg'], $json['code'], $json['data']);
                 }
             }
-        } catch (\GuzzleHttp\Exception\TransferException $e) {
+        } catch (TransferException $e) {
             throw new Exception("Addon package download failed");
         }
 
@@ -206,9 +207,9 @@ class Service
         } catch (Exception $e) {
             throw new Exception(__($e->getMessage()));
         } finally {
+            $zip->close();
             unset($info);
             @unlink($tmpFile);
-            $zip->close();
         }
     }
 
@@ -228,7 +229,7 @@ class Service
         try {
             $response = $client->post('/addon/valid', ['multipart' => $multipart]);
             $content = $response->getBody()->getContents();
-        } catch (RequestException $e) {
+        } catch (TransferException $e) {
             throw new Exception("Network error");
         }
         $json = (array)json_decode($content, true);
@@ -264,6 +265,8 @@ class Service
         } finally {
             $zipFile->close();
         }
+
+
         return true;
     }
 
@@ -548,14 +551,28 @@ EOD;
         $sourceAssetsDir = self::getSourceAssetsDir($name);
         $destAssetsDir = self::getDestAssetsDir($name);
 
+        $files = self::getGlobalFiles($name);
+        //刷新插件配置缓存
+        Service::config($name, ['files' => $files]);
+
         // 复制文件
         if (is_dir($sourceAssetsDir)) {
             copydirs($sourceAssetsDir, $destAssetsDir);
         }
+
         // 复制application和public到全局
         foreach (self::getCheckDirs() as $k => $dir) {
             if (is_dir($addonDir . $dir)) {
                 copydirs($addonDir . $dir, ROOT_PATH . $dir);
+            }
+        }
+
+        //插件纯净模式时将插件目录下的application、public和assets删除
+        if (config('fastadmin.addon_pure_mode')) {
+            // 删除插件目录已复制到全局的文件
+            @rmdirs($sourceAssetsDir);
+            foreach (self::getCheckDirs() as $k => $dir) {
+                @rmdirs($addonDir . $dir);
             }
         }
 
@@ -625,8 +642,33 @@ EOD;
             }
         }
 
+        $config = Service::config($name);
+
+        $addonDir = self::getAddonDir($name);
         //插件资源目录
         $destAssetsDir = self::getDestAssetsDir($name);
+
+        //插件纯净模式时将原有的文件复制回插件目录
+        if (config('fastadmin.addon_pure_mode')) {
+            if ($config && isset($config['files']) && is_array($config['files'])) {
+                foreach ($config['files'] as $index => $item) {
+                    //插件资源目录，无需重复复制
+                    if (stripos($item, str_replace(ROOT_PATH, '', $destAssetsDir)) === 0) {
+                        continue;
+                    }
+                    //检查目录是否存在，不存在则创建
+                    $itemBaseDir = dirname($addonDir . $item);
+                    if (!is_dir($itemBaseDir)) {
+                        @mkdir($itemBaseDir, 0755, true);
+                    }
+                    copy(ROOT_PATH . $item, $addonDir . $item);
+                }
+            }
+            //复制插件目录资源
+            if (is_dir($destAssetsDir)) {
+                @copydirs($destAssetsDir, $addonDir . 'assets' . DS);
+            }
+        }
 
         // 移除插件全局文件
         $list = Service::getGlobalFiles($name);
@@ -693,6 +735,12 @@ EOD;
 
         $addonDir = self::getAddonDir($name);
 
+        // 删除插件目录下的application和public
+        $files = self::getCheckDirs();
+        foreach ($files as $index => $file) {
+            @rmdirs($addonDir . $file);
+        }
+
         try {
             // 解压插件
             Service::unzip($name);
@@ -740,6 +788,27 @@ EOD;
         // 刷新
         Service::refresh();
         return true;
+    }
+
+    /**
+     * 读取或修改插件配置
+     * @param string $name
+     * @param array  $changed
+     * @return array
+     */
+    public static function config($name, $changed = [])
+    {
+        $addonDir = self::getAddonDir($name);
+        $addonConfigFile = $addonDir . '.addonrc';
+        $config = [];
+        if (is_file($addonConfigFile)) {
+            $config = (array)json_decode(file_get_contents($addonConfigFile), true);
+        }
+        $config = array_merge($config, $changed);
+        if ($changed) {
+            file_put_contents($addonConfigFile, json_encode($config, JSON_UNESCAPED_UNICODE));
+        }
+        return $config;
     }
 
     /**
