@@ -3,7 +3,6 @@
     "description": "addons package for fastadmin",
     "homepage": "https://github.com/karsonzhang/fastadmin-addons",
     "license": "Apache-2.0",
-    "minimum-stability": "dev",
     "version": "1.2.4",
     "authors": [
         {
