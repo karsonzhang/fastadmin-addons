@@ -552,8 +552,10 @@ EOD;
         $destAssetsDir = self::getDestAssetsDir($name);
 
         $files = self::getGlobalFiles($name);
-        //刷新插件配置缓存
-        Service::config($name, ['files' => $files]);
+        if ($files) {
+            //刷新插件配置缓存
+            Service::config($name, ['files' => $files]);
+        }
 
         // 复制文件
         if (is_dir($sourceAssetsDir)) {
@@ -648,8 +650,12 @@ EOD;
         //插件资源目录
         $destAssetsDir = self::getDestAssetsDir($name);
 
+        // 移除插件全局文件
+        $list = Service::getGlobalFiles($name);
+
         //插件纯净模式时将原有的文件复制回插件目录
-        if (config('fastadmin.addon_pure_mode')) {
+        //当无法获取全局文件列表时也将列表复制回插件目录
+        if (config('fastadmin.addon_pure_mode') || !$list) {
             if ($config && isset($config['files']) && is_array($config['files'])) {
                 foreach ($config['files'] as $index => $item) {
                     //插件资源目录，无需重复复制
@@ -670,8 +676,6 @@ EOD;
             }
         }
 
-        // 移除插件全局文件
-        $list = Service::getGlobalFiles($name);
         $dirs = [];
         foreach ($list as $k => $v) {
             $file = ROOT_PATH . $v;
@@ -860,6 +864,7 @@ EOD;
                 }
             }
         }
+        $list = array_filter(array_unique($list));
         return $list;
     }
 
