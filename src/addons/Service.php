@@ -886,7 +886,7 @@ EOD;
      */
     public static function getExtraAddonsFile()
     {
-        return APP_PATH . 'extra' . DS . 'addons.php';
+        return CONF_PATH . 'extra' . DS . 'addons.php';
     }
 
     /**
