@@ -32,15 +32,12 @@ class Service
         $addonsTempDir = self::getAddonsBackupDir();
         $tmpFile = $addonsTempDir . $name . ".zip";
         try {
-            \think\Log::record(\think\Debug::getUseTime());
             $client = self::getClient();
             $response = $client->get('/addon/download', ['query' => array_merge(['name' => $name], $extend)]);
-            \think\Log::record(\think\Debug::getUseTime());
             $body = $response->getBody();
             $content = $body->getContents();
             if (substr($content, 0, 1) === '{') {
                 $json = (array)json_decode($content, true);
-                \think\Log::record(\think\Debug::getUseTime());
 
                 //如果传回的是一个下载链接,则再次下载
                 if ($json['data'] && isset($json['data']['url'])) {
@@ -59,7 +56,6 @@ class Service
         if ($write = fopen($tmpFile, 'w')) {
             fwrite($write, $content);
             fclose($write);
-            \think\Log::record(\think\Debug::getUseTime());
             return $tmpFile;
         }
         throw new Exception("No permission to write temporary files");
@@ -672,7 +668,9 @@ EOD;
                     if (!is_dir($itemBaseDir)) {
                         @mkdir($itemBaseDir, 0755, true);
                     }
-                    copy(ROOT_PATH . $item, $addonDir . $item);
+                    if (is_file(ROOT_PATH . $item)) {
+                        @copy(ROOT_PATH . $item, $addonDir . $item);
+                    }
                 }
                 $list = $config['files'];
             }
