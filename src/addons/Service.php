@@ -10,6 +10,7 @@ use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Symfony\Component\VarExporter\VarExporter;
+use think\Cache;
 use think\Db;
 use think\Exception;
 
@@ -371,6 +372,8 @@ EOD;
         } else {
             throw new Exception(__("Unable to open file '%s' for writing", "addons.js"));
         }
+
+        Cache::clear("addons");
 
         $file = self::getExtraAddonsFile();
 
