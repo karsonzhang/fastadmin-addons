@@ -662,6 +662,8 @@ EOD;
         if (config('fastadmin.addon_pure_mode') || !$list) {
             if ($config && isset($config['files']) && is_array($config['files'])) {
                 foreach ($config['files'] as $index => $item) {
+                    //避免切换不同服务器后导致路径不一致
+                    $item = str_replace(['/', '\\'], DS, $item);
                     //插件资源目录，无需重复复制
                     if (stripos($item, str_replace(ROOT_PATH, '', $destAssetsDir)) === 0) {
                         continue;
