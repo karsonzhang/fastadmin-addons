@@ -97,6 +97,11 @@ class Controller extends \think\Controller
 
     protected function _initialize()
     {
+        // 检测IP是否允许
+        if (function_exists("check_ip_allowed")) {
+            check_ip_allowed();
+        }
+
         // 渲染配置到视图中
         $config = get_addon_config($this->addon);
         $this->view->assign("config", $config);
