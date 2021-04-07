@@ -373,7 +373,8 @@ EOD;
             throw new Exception(__("Unable to open file '%s' for writing", "addons.js"));
         }
 
-        Cache::clear("addons");
+        Cache::rm("addons");
+        Cache::rm("hooks");
 
         $file = self::getExtraAddonsFile();
 
