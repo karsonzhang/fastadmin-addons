@@ -40,7 +40,7 @@ class Route
             }
             $dispatch = $request->dispatch();
             if (isset($dispatch['var']) && $dispatch['var']) {
-                //$request->route($dispatch['var']);
+                $request->route(array_diff_key($dispatch['var'], array_flip(['addon', 'controller', 'action'])));
             }
 
             // 设置当前请求的控制器、操作

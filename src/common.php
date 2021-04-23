@@ -456,9 +456,7 @@ function set_addon_info($name, $array)
             $res[] = "$key = " . (is_numeric($val) ? $val : $val);
         }
     }
-    if ($handle = fopen($file, 'w')) {
-        fwrite($handle, implode("\n", $res) . "\n");
-        fclose($handle);
+    if (file_put_contents($file, implode("\n", $res) . "\n", LOCK_EX)) {
         //清空当前配置缓存
         Config::set($name, null, 'addoninfo');
     } else {
@@ -504,14 +502,9 @@ function set_addon_config($name, $config, $writefile = true)
 function set_addon_fullconfig($name, $array)
 {
     $file = ADDON_PATH . $name . DS . 'config.php';
-    if (!is_really_writable($file)) {
-        throw new Exception("文件没有写入权限");
-    }
-    if ($handle = fopen($file, 'w')) {
-        fwrite($handle, "<?php\n\n" . "return " . VarExporter::export($array) . ";\n");
-        fclose($handle);
-    } else {
-        throw new Exception("文件没有写入权限");
+    $ret = file_put_contents($file, "<?php\n\n" . "return " . VarExporter::export($array) . ";\n", LOCK_EX);
+    if (!$ret) {
+        throw new Exception("配置写入失败");
     }
     return true;
 }

@@ -387,12 +387,7 @@ EOD;
             throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
 
-        if ($handle = fopen($file, 'w')) {
-            fwrite($handle, "<?php\n\n" . "return " . VarExporter::export($config) . ";\n");
-            fclose($handle);
-        } else {
-            throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
-        }
+        file_put_contents($file, "<?php\n\n" . "return " . VarExporter::export($config) . ";\n", LOCK_EX);
         return true;
     }
 
