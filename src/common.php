@@ -393,8 +393,9 @@ function addon_url($url, $vars = [], $suffix = true, $domain = false)
     $val = "@addons/{$url}";
     $config = get_addon_config($addon);
     $dispatch = think\Request::instance()->dispatch();
-    $indomain = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] ? true : false;
-    $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : '';
+    $indomain = isset($dispatch['var']['indomain']) && $dispatch['var']['indomain'] && $dispatch['var']['addon'] == $addon ? true : false;
+    //优先取插件配置中的domain，没有的情况下取全局的域名前缀配置
+    $domainprefix = $config && isset($config['domain']) && $config['domain'] ? $config['domain'] : Config::get('addons.domain');
     $domain = $domainprefix && Config::get('url_domain_deploy') ? $domainprefix : $domain;
     $rewrite = $config && isset($config['rewrite']) && $config['rewrite'] ? $config['rewrite'] : [];
     if ($rewrite) {
