@@ -5,6 +5,7 @@ namespace think\addons;
 use fast\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\TransferStats;
 use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
@@ -13,6 +14,7 @@ use Symfony\Component\VarExporter\VarExporter;
 use think\Cache;
 use think\Db;
 use think\Exception;
+use think\Log;
 
 /**
  * 插件服务
@@ -20,6 +22,67 @@ use think\Exception;
  */
 class Service
 {
+    /**
+     * 插件列表
+     */
+    public static function addons($params = [])
+    {
+        $params['domain'] = request()->host(true);
+        return self::sendRequest('/addon/index', $params, 'GET');
+    }
+
+    /**
+     * 登录
+     */
+    public static function login($params = [])
+    {
+        return self::sendRequest('/user/login', $params, 'POST');
+    }
+
+    /**
+     * 会员信息
+     */
+    public static function userinfo($params = [])
+    {
+        return self::sendRequest('/user/index', $params, 'POST');
+    }
+
+    /**
+     * 退出
+     */
+    public static function logout($params = [])
+    {
+        return self::sendRequest('/user/logout', $params, 'POST');
+    }
+
+    /**
+     * 检测插件是否购买授权
+     */
+    public static function isBuy($name, $extend = [])
+    {
+        $params = array_merge(['name' => $name, 'domain' => request()->host(true)], $extend);
+        return self::sendRequest('/addon/isbuy', $params, 'POST');
+    }
+
+    /**
+     * 检测插件是否授权
+     *
+     * @param string $name   插件名称
+     * @param string $domain 验证域名
+     */
+    public static function isAuthorization($name, $domain = '')
+    {
+        $config = self::config($name);
+        $request = request();
+        $domain = self::getRootDomain($domain ? $domain : $request->host(true));
+        if (isset($config['domains']) && isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
+            $index = array_search($domain, $config['domains']);
+            if ((in_array($domain, $config['domains']) && in_array(md5(md5($domain) . ($config['licensecodes'][$index] ?? '')), $config['validations'])) || $request->isCli()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * 远程下载插件
@@ -39,19 +102,20 @@ class Service
             $content = $body->getContents();
             if (substr($content, 0, 1) === '{') {
                 $json = (array)json_decode($content, true);
-
                 //如果传回的是一个下载链接,则再次下载
                 if ($json['data'] && isset($json['data']['url'])) {
                     $response = $client->get($json['data']['url']);
                     $body = $response->getBody();
                     $content = $body->getContents();
                 } else {
+                    Log::write("[addon]" . $content);
                     //下载返回错误，抛出异常
                     throw new AddonException($json['msg'], $json['code'], $json['data']);
                 }
             }
         } catch (TransferException $e) {
-            throw new Exception("Addon package download failed");
+            Log::write("[addon]" . $e->getMessage());
+            throw new Exception(config('app_debug') ? $e->getMessage() : "Addon package download failed");
         }
 
         if ($write = fopen($tmpFile, 'w')) {
@@ -59,7 +123,7 @@ class Service
             fclose($write);
             return $tmpFile;
         }
-        throw new Exception("No permission to write temporary files");
+        throw new Exception(config('app_debug') && isset($content) ? $content : "No permission to write temporary files");
     }
 
     /**
@@ -83,7 +147,7 @@ class Service
             $zip->openFile($file);
         } catch (ZipException $e) {
             $zip->close();
-            throw new Exception('Unable to open the zip file');
+            throw new Exception(config('app_debug') ? $e->getMessage() : 'Unable to open the zip file');
         }
 
         $dir = self::getAddonDir($name);
@@ -95,7 +159,7 @@ class Service
         try {
             $zip->extractTo($dir);
         } catch (ZipException $e) {
-            throw new Exception('Unable to extract the file');
+            throw new Exception(config('app_debug') ? $e->getMessage() : 'Unable to extract the file');
         } finally {
             $zip->close();
         }
@@ -209,6 +273,7 @@ class Service
 
         $info['config'] = get_addon_config($name) ? 1 : 0;
         $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
+        $info['testdata'] = is_file(Service::getTestdataFile($name));
         return $info;
     }
 
@@ -220,18 +285,7 @@ class Service
      */
     public static function valid($params = [])
     {
-        $client = self::getClient();
-        $multipart = [];
-        foreach ($params as $name => $value) {
-            $multipart[] = ['name' => $name, 'contents' => $value];
-        }
-        try {
-            $response = $client->post('/addon/valid', ['multipart' => $multipart]);
-            $content = $response->getBody()->getContents();
-        } catch (TransferException $e) {
-            throw new Exception("Network error");
-        }
-        $json = (array)json_decode($content, true);
+        $json = self::sendRequest('/addon/valid', $params, 'POST');
         if ($json && isset($json['code'])) {
             if ($json['code']) {
                 return true;
@@ -264,7 +318,6 @@ class Service
         } finally {
             $zipFile->close();
         }
-
 
         return true;
     }
@@ -313,12 +366,14 @@ class Service
     /**
      * 导入SQL
      *
-     * @param string $name 插件名称
+     * @param string $name     插件名称
+     * @param string $fileName SQL文件名称
      * @return  boolean
      */
-    public static function importsql($name)
+    public static function importsql($name, $fileName = null)
     {
-        $sqlFile = self::getAddonDir($name) . 'install.sql';
+        $fileName = is_null($fileName) ? 'install.sql' : $fileName;
+        $sqlFile = self::getAddonDir($name) . $fileName;
         if (is_file($sqlFile)) {
             $lines = file($sqlFile);
             $templine = '';
@@ -356,7 +411,7 @@ class Service
         $bootstrapArr = [];
         foreach ($addons as $name => $addon) {
             $bootstrapFile = self::getBootstrapFile($name);
-            if ($addon['state'] && is_file($bootstrapFile)) {
+            if ($addon['state'] && is_file($bootstrapFile) && self::isAuthorization($name)) {
                 $bootstrapArr[] = file_get_contents($bootstrapFile);
             }
         }
@@ -406,6 +461,8 @@ EOD;
         if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
             throw new Exception('Addon already exists');
         }
+
+        $extend['domain'] = request()->host(true);
 
         // 远程下载插件
         $tmpFile = Service::download($name, $extend);
@@ -464,6 +521,7 @@ EOD;
 
         $info['config'] = get_addon_config($name) ? 1 : 0;
         $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
+        $info['testdata'] = is_file(Service::getTestdataFile($name));
         return $info;
     }
 
@@ -880,6 +938,84 @@ EOD;
     }
 
     /**
+     * 更新本地应用插件授权
+     */
+    public static function authorization($params = [])
+    {
+        $addonList = get_addon_list();
+        $result = [];
+        $domain = request()->host(true);
+        $addons = [];
+        foreach ($addonList as $name => $item) {
+            $config = self::config($name);
+            $addons[] = ['name' => $name, 'domains' => $config['domains'] ?? [], 'licensecodes' => $config['licensecodes'] ?? [], 'validations' => $config['validations'] ?? []];
+        }
+        $params = array_merge($params, [
+            'faversion' => config('fastadmin.version'),
+            'domain'    => $domain,
+            'addons'    => $addons
+        ]);
+        $result = self::sendRequest('/addon/authorization', $params, 'POST');
+        if (isset($result['code']) && $result['code'] == 1) {
+            $json = $result['data']['addons'] ?? [];
+            foreach ($addonList as $name => $item) {
+                self::config($name, ['domains' => $json[$name]['domains'] ?? [], 'licensecodes' => $json[$name]['licensecodes'] ?? [], 'validations' => $json[$name]['validations'] ?? []]);
+            }
+            return true;
+        } else {
+            throw new Exception($result['msg'] ?? __('Network error'));
+        }
+    }
+
+    /**
+     * 验证插件授权，应用插件需要授权使用，移除或绕过授权验证，保留追究法律责任的权利
+     * @param $name
+     * @return bool
+     */
+    public static function checkAddonAuthorization($name)
+    {
+        $request = request();
+        $config = self::config($name);
+        $domain = self::getRootDomain($request->host(true));
+        //应用插件需要授权使用，移除或绕过授权验证，保留追究法律责任的权利
+        if (isset($config['domains']) && isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
+            $index = array_search($domain, $config['domains']);
+            if ((in_array($domain, $config['domains']) && in_array(md5(md5($domain) . ($config['licensecodes'][$index] ?? '')), $config['validations'])) || $request->isCli()) {
+                $request->bind('authorized', $domain ?: 'cli');
+                return true;
+            } elseif ($config['domains']) {
+                foreach ($config['domains'] as $index => $item) {
+                    if (substr_compare($domain, "." . $item, -strlen("." . $item)) === 0 && in_array(md5(md5($item) . ($config['licensecodes'][$index] ?? '')), $config['validations'])) {
+                        $request->bind('authorized', $domain);
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 获取顶级域名
+     * @param $domain
+     * @return string
+     */
+    public static function getRootDomain($domain)
+    {
+        $host = strtolower(trim($domain));
+        $hostArr = explode('.', $host);
+        $hostCount = count($hostArr);
+        $cnRegex = '/\w+\.(gov|org|ac|mil|net|edu|com|bj|tj|sh|cq|he|sx|nm|ln|jl|hl|js|zj|ah|fj|jx|sd|ha|hb|hn|gd|gx|hi|sc|gz|yn|xz|sn|gs|qh|nx|xj|tw|hk|mo)\.cn$/i';
+        $countryRegex = '/\w+\.(\w{2}|com|net)\.\w{2}$/i';
+        if ($hostCount > 2 && (preg_match($cnRegex, $host) || preg_match($countryRegex, $host))) {
+            $host = implode('.', array_slice($hostArr, -3, 3, true));
+        } else {
+            $host = implode('.', array_slice($hostArr, -2, 2, true));
+        }
+        return $host;
+    }
+
+    /**
      * 获取插件行为、路由配置文件
      * @return string
      */
@@ -895,6 +1031,15 @@ EOD;
     public static function getBootstrapFile($name)
     {
         return ADDON_PATH . $name . DS . 'bootstrap.js';
+    }
+
+    /**
+     * 获取testdata.sql路径
+     * @return string
+     */
+    public static function getTestdataFile($name)
+    {
+        return ADDON_PATH . $name . DS . 'testdata.sql';
     }
 
     /**
@@ -964,7 +1109,7 @@ EOD;
      * 获取请求对象
      * @return Client
      */
-    protected static function getClient()
+    public static function getClient()
     {
         $options = [
             'base_uri'        => self::getServerUrl(),
@@ -983,6 +1128,32 @@ EOD;
             $client = new Client($options);
         }
         return $client;
+    }
+
+    /**
+     * 发送请求
+     * @return array
+     * @throws Exception
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public static function sendRequest($url, $params = [], $method = 'POST')
+    {
+        $json = [];
+        try {
+            $client = self::getClient();
+            $options = strtoupper($method) == 'POST' ? ['form_params' => $params] : ['query' => $params];
+            $response = $client->request($method, $url, $options);
+            $body = $response->getBody();
+            $content = $body->getContents();
+            $json = (array)json_decode($content, true);
+        } catch (TransferException $e) {
+            Log::write("[addon]" . $e->getMessage());
+            throw new Exception(config('app_debug') ? $e->getMessage() : __('Network error'));
+        } catch (\Exception $e) {
+            Log::write("[addon]" . $e->getMessage());
+            throw new Exception(config('app_debug') ? $e->getMessage() : __('Unknown data format'));
+        }
+        return $json;
     }
 
     /**

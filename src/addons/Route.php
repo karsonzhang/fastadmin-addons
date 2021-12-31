@@ -4,9 +4,11 @@ namespace think\addons;
 
 use think\Config;
 use think\exception\HttpException;
+use think\exception\HttpResponseException;
 use think\Hook;
 use think\Loader;
 use think\Request;
+use think\Response;
 
 /**
  * 插件执行默认控制器
@@ -37,6 +39,9 @@ class Route
             }
             if (!$info['state']) {
                 throw new HttpException(500, __('addon %s is disabled', $addon));
+            }
+            if (!Service::checkAddonAuthorization($addon)) {
+                throw new HttpResponseException(new Response('',sprintf("%d1", 40)));
             }
             $dispatch = $request->dispatch();
             if (isset($dispatch['var']) && $dispatch['var']) {
