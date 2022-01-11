@@ -40,9 +40,6 @@ class Route
             if (!$info['state']) {
                 throw new HttpException(500, __('addon %s is disabled', $addon));
             }
-            if (!Service::checkAddonAuthorization($addon)) {
-                throw new HttpResponseException(new Response('',sprintf("%d1", 40)));
-            }
             $dispatch = $request->dispatch();
             if (isset($dispatch['var']) && $dispatch['var']) {
                 $request->route(array_diff_key($dispatch['var'], array_flip(['addon', 'controller', 'action'])));

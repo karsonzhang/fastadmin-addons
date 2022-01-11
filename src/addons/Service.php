@@ -32,30 +32,6 @@ class Service
     }
 
     /**
-     * 登录
-     */
-    public static function login($params = [])
-    {
-        return self::sendRequest('/user/login', $params, 'POST');
-    }
-
-    /**
-     * 会员信息
-     */
-    public static function userinfo($params = [])
-    {
-        return self::sendRequest('/user/index', $params, 'POST');
-    }
-
-    /**
-     * 退出
-     */
-    public static function logout($params = [])
-    {
-        return self::sendRequest('/user/logout', $params, 'POST');
-    }
-
-    /**
      * 检测插件是否购买授权
      */
     public static function isBuy($name, $extend = [])

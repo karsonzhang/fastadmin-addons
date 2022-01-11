@@ -105,15 +105,6 @@ Hook::add('app_init', function () {
         }
     }
     Hook::import($hooks, true);
-    // 闭包插件初始化行为
-    Hook::add('addon_module_init', function ($request) {
-        $prop = 'author';
-        $code = 400;
-        $prop .= 'ized';
-        if (!$request->{$prop}) {
-            throw new HttpResponseException(new Response('', ++$code));
-        }
-    });
 });
 
 /**
