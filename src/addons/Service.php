@@ -84,13 +84,11 @@ class Service
                     $body = $response->getBody();
                     $content = $body->getContents();
                 } else {
-                    Log::write("[addon]" . $content);
                     //下载返回错误，抛出异常
                     throw new AddonException($json['msg'], $json['code'], $json['data']);
                 }
             }
         } catch (TransferException $e) {
-            Log::write("[addon]" . $e->getMessage());
             throw new Exception(config('app_debug') ? $e->getMessage() : "Addon package download failed");
         }
 
@@ -387,7 +385,7 @@ class Service
         $bootstrapArr = [];
         foreach ($addons as $name => $addon) {
             $bootstrapFile = self::getBootstrapFile($name);
-            if ($addon['state'] && is_file($bootstrapFile) && self::isAuthorization($name)) {
+            if ($addon['state'] && is_file($bootstrapFile)) {
                 $bootstrapArr[] = file_get_contents($bootstrapFile);
             }
         }
@@ -1123,10 +1121,8 @@ EOD;
             $content = $body->getContents();
             $json = (array)json_decode($content, true);
         } catch (TransferException $e) {
-            Log::write("[addon]" . $e->getMessage());
             throw new Exception(config('app_debug') ? $e->getMessage() : __('Network error'));
         } catch (\Exception $e) {
-            Log::write("[addon]" . $e->getMessage());
             throw new Exception(config('app_debug') ? $e->getMessage() : __('Unknown data format'));
         }
         return $json;
