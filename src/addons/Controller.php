@@ -106,9 +106,12 @@ class Controller extends \think\Controller
         $config = get_addon_config($this->addon);
         $this->view->assign("config", $config);
 
+        $lang = $this->request->langset();
+        $lang = preg_match("/^([a-zA-Z\-_]{2,10})\$/i", $lang) ? $lang : 'zh-cn';
+
         // 加载系统语言包
         Lang::load([
-            ADDON_PATH . $this->addon . DS . 'lang' . DS . $this->request->langset() . EXT,
+            ADDON_PATH . $this->addon . DS . 'lang' . DS . $lang . EXT,
         ]);
 
         // 设置替换字符串

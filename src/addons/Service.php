@@ -89,7 +89,7 @@ class Service
                 }
             }
         } catch (TransferException $e) {
-            throw new Exception(config('app_debug') ? $e->getMessage() : "Addon package download failed");
+            throw new Exception("Addon package download failed");
         }
 
         if ($write = fopen($tmpFile, 'w')) {
@@ -97,7 +97,7 @@ class Service
             fclose($write);
             return $tmpFile;
         }
-        throw new Exception(config('app_debug') && isset($content) ? $content : "No permission to write temporary files");
+        throw new Exception("No permission to write temporary files");
     }
 
     /**
@@ -121,7 +121,7 @@ class Service
             $zip->openFile($file);
         } catch (ZipException $e) {
             $zip->close();
-            throw new Exception(config('app_debug') ? $e->getMessage() : 'Unable to open the zip file');
+            throw new Exception('Unable to open the zip file');
         }
 
         $dir = self::getAddonDir($name);
@@ -133,7 +133,7 @@ class Service
         try {
             $zip->extractTo($dir);
         } catch (ZipException $e) {
-            throw new Exception(config('app_debug') ? $e->getMessage() : 'Unable to extract the file');
+            throw new Exception('Unable to extract the file');
         } finally {
             $zip->close();
         }
@@ -1121,9 +1121,9 @@ EOD;
             $content = $body->getContents();
             $json = (array)json_decode($content, true);
         } catch (TransferException $e) {
-            throw new Exception(config('app_debug') ? $e->getMessage() : __('Network error'));
+            throw new Exception(__('Network error'));
         } catch (\Exception $e) {
-            throw new Exception(config('app_debug') ? $e->getMessage() : __('Unknown data format'));
+            throw new Exception(__('Unknown data format'));
         }
         return $json;
     }
