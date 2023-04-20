@@ -207,7 +207,7 @@ class Service
             try {
                 $zip->extractTo($newAddonDir);
             } catch (ZipException $e) {
-                @unlink($newAddonDir);
+                @rmdirs($newAddonDir);
                 throw new Exception('Unable to extract the file');
             }
 
