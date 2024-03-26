@@ -10,7 +10,6 @@ use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use Symfony\Component\VarExporter\VarExporter;
 use think\Cache;
 use think\Db;
 use think\Exception;
@@ -104,16 +103,17 @@ class Service
      * 解压插件
      *
      * @param string $name 插件名称
+     * @param string $file 文件路径
      * @return  string
      * @throws  Exception
      */
-    public static function unzip($name)
+    public static function unzip($name, $file = '')
     {
         if (!$name) {
             throw new Exception('Invalid parameters');
         }
         $addonsBackupDir = self::getAddonsBackupDir();
-        $file = $addonsBackupDir . $name . '.zip';
+        $file = $file ?: $addonsBackupDir . $name . '.zip';
 
         // 打开插件压缩包
         $zip = new ZipFile();
@@ -142,10 +142,11 @@ class Service
 
     /**
      * 离线安装
-     * @param string $file 插件压缩包
-     * @param array  $extend
+     * @param string $file   插件压缩包
+     * @param array  $extend 扩展参数
+     * @param string $force  是否覆盖
      */
-    public static function local($file, $extend = [])
+    public static function local($file, $extend = [], $force = false)
     {
         $addonsTempDir = self::getAddonsBackupDir();
         if (!$file || !$file instanceof \think\File) {
@@ -185,9 +186,18 @@ class Service
 
             // 判断新插件是否存在
             $newAddonDir = self::getAddonDir($name);
-            if (is_dir($newAddonDir)) {
-                throw new Exception('Addon already exists');
+            if (!$force && is_dir($newAddonDir)) {
+                throw new AddonException('Addon already exists', -1, ['name' => $name, 'title' => $config['title']]);
             }
+
+            // 读取旧版本号
+            if (is_dir($newAddonDir)) {
+                $oldConfig = parse_ini_file($newAddonDir . 'info.ini');
+                $oldversion = $oldConfig['version'] ?? '';
+            }
+
+            $extend['oldversion'] = $oldversion;
+            $extend['version'] = $config['version'];
 
             // 追加MD5和Data数据
             $extend['md5'] = md5_file($tmpFile);
@@ -200,41 +210,14 @@ class Service
             // 压缩包验证、版本依赖判断
             Service::valid($params);
 
-            //创建插件目录
-            @mkdir($newAddonDir, 0755, true);
-
-            // 解压到插件目录
-            try {
-                $zip->extractTo($newAddonDir);
-            } catch (ZipException $e) {
-                @rmdirs($newAddonDir);
-                throw new Exception('Unable to extract the file');
+            if (!$oldversion) {
+                // 新装模式
+                $info = Service::install($name, $force, $extend, $tmpFile);
+            } else {
+                // 升级模式
+                $info = Service::upgrade($name, $extend, $tmpFile);
             }
 
-            Db::startTrans();
-            try {
-                //默认禁用该插件
-                $info = get_addon_info($name);
-                if ($info['state']) {
-                    $info['state'] = 0;
-                    set_addon_info($name, $info);
-                }
-
-                //执行插件的安装方法
-                $class = get_addon_class($name);
-                if (class_exists($class)) {
-                    $addon = new $class();
-                    $addon->install();
-                }
-                Db::commit();
-            } catch (\Exception $e) {
-                Db::rollback();
-                @rmdirs($newAddonDir);
-                throw new Exception(__($e->getMessage()));
-            }
-
-            //导入SQL
-            Service::importsql($name);
         } catch (AddonException $e) {
             throw new AddonException($e->getMessage(), $e->getCode(), $e->getData());
         } catch (Exception $e) {
@@ -416,21 +399,22 @@ EOD;
             throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
 
-        file_put_contents($file, "<?php\n\n" . "return " . VarExporter::export($config) . ";\n", LOCK_EX);
+        file_put_contents($file, "<?php\n\n" . "return " . var_export($config, true) . ";\n", LOCK_EX);
         return true;
     }
 
     /**
      * 安装插件
      *
-     * @param string  $name   插件名称
-     * @param boolean $force  是否覆盖
-     * @param array   $extend 扩展参数
+     * @param string  $name    插件名称
+     * @param boolean $force   是否覆盖
+     * @param array   $extend  扩展参数
+     * @param array   $tmpFile 本地文件
      * @return  boolean
      * @throws  Exception
      * @throws  AddonException
      */
-    public static function install($name, $force = false, $extend = [])
+    public static function install($name, $force = false, $extend = [], $tmpFile = '')
     {
         if (!$name || (is_dir(ADDON_PATH . $name) && !$force)) {
             throw new Exception('Addon already exists');
@@ -439,13 +423,13 @@ EOD;
         $extend['domain'] = request()->host(true);
 
         // 远程下载插件
-        $tmpFile = Service::download($name, $extend);
+        $tmpFile = $tmpFile ?: Service::download($name, $extend);
 
         $addonDir = self::getAddonDir($name);
 
         try {
             // 解压插件压缩包到插件目录
-            Service::unzip($name);
+            Service::unzip($name, $tmpFile);
 
             // 检查插件是否完整
             Service::check($name);
@@ -757,7 +741,7 @@ EOD;
      * @param string $name   插件名称
      * @param array  $extend 扩展参数
      */
-    public static function upgrade($name, $extend = [])
+    public static function upgrade($name, $extend = [], $tmpFile = false)
     {
         $info = get_addon_info($name);
         if ($info['state']) {
@@ -768,8 +752,8 @@ EOD;
             //备份配置
         }
 
-        // 远程下载插件
-        $tmpFile = Service::download($name, $extend);
+        // 远程下载插件(如果为本地文件则使用本地文件)
+        $tmpFile = $tmpFile ? $tmpFile : Service::download($name, $extend);
 
         // 备份插件文件
         Service::backup($name);
@@ -784,7 +768,7 @@ EOD;
 
         try {
             // 解压插件
-            Service::unzip($name);
+            Service::unzip($name, $tmpFile);
         } catch (Exception $e) {
             throw new Exception($e->getMessage());
         } finally {
@@ -793,8 +777,18 @@ EOD;
         }
 
         if ($config) {
-            // 还原配置
-            set_addon_config($name, $config);
+            $configFile = ADDON_PATH . $name . DS . 'config.php';
+            $bakFile = ADDON_PATH . $name . DS . 'config_tmp.php';
+            @copy($configFile, $bakFile);
+            $fullConfig = include($bakFile);
+            @unlink($bakFile);
+            foreach ($fullConfig as $index => &$item) {
+                if (isset($config[$item['name']])) {
+                    $item['value'] = $config[$item['name']];
+                }
+            }
+            // 更新配置
+            set_addon_fullconfig($name, $fullConfig);
         }
 
         // 导入
