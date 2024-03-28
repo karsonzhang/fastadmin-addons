@@ -198,7 +198,7 @@ function get_addon_autoload_config($truncate = false)
     $route = [];
     // 读取插件目录及钩子列表
     $base = get_class_methods("\\think\\Addons");
-    $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable']);
+    $base = array_merge($base, ['install', 'uninstall', 'enable', 'disable', 'upgrade', 'config']);
 
     $url_domain_deploy = Config::get('url_domain_deploy');
     $addons = get_addon_list();
