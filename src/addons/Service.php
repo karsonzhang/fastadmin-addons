@@ -51,7 +51,7 @@ class Service
         $config = self::config($name);
         $request = request();
         $domain = self::getRootDomain($domain ? $domain : $request->host(true));
-        if (isset($config['domains']) && isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
+        if (isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
             $index = array_search($domain, $config['domains']);
             if ((in_array($domain, $config['domains']) && in_array(md5(md5($domain) . ($config['licensecodes'][$index] ?? '')), $config['validations'])) || $request->isCli()) {
                 return true;
@@ -175,7 +175,7 @@ class Service
             $config = self::getInfoIni($zip);
 
             // 判断插件标识
-            $name = isset($config['name']) ? $config['name'] : '';
+            $name = $config['name'] ?? '';
             if (!$name) {
                 throw new Exception('Addon info file data incorrect');
             }
@@ -192,6 +192,7 @@ class Service
             }
 
             // 读取旧版本号
+            $oldversion = '';
             if (is_dir($newAddonDir)) {
                 $oldConfig = parse_ini_file($newAddonDir . 'info.ini');
                 $oldversion = $oldConfig['version'] ?? '';
@@ -208,7 +209,7 @@ class Service
 
             $params = array_merge($config, $extend);
 
-            // 压缩包验证、版本依赖判断
+            // 压缩包验证、版本依赖判断，应用插件需要授权使用，移除或绕过授权验证，保留追究法律责任的权利
             Service::valid($params);
 
             if (!$oldversion) {
@@ -825,7 +826,7 @@ EOD;
         Service::refresh();
 
         //必须变更版本号
-        $info['version'] = isset($extend['version']) ? $extend['version'] : $info['version'];
+        $info['version'] = $extend['version'] ?? $info['version'];
 
         $info['config'] = get_addon_config($name) ? 1 : 0;
         $info['bootstrap'] = is_file(Service::getBootstrapFile($name));
@@ -947,7 +948,7 @@ EOD;
         $config = self::config($name);
         $domain = self::getRootDomain($request->host(true));
         //应用插件需要授权使用，移除或绕过授权验证，保留追究法律责任的权利
-        if (isset($config['domains']) && isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
+        if (isset($config['domains']) && isset($config['validations']) && isset($config['licensecodes'])) {
             $index = array_search($domain, $config['domains']);
             if ((in_array($domain, $config['domains']) && in_array(md5(md5($domain) . ($config['licensecodes'][$index] ?? '')), $config['validations'])) || $request->isCli()) {
                 $request->bind('authorized', $domain ?: 'cli');
