@@ -10,6 +10,7 @@ use PhpZip\Exception\ZipException;
 use PhpZip\ZipFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use Symfony\Component\VarExporter\VarExporter;
 use think\Cache;
 use think\Db;
 use think\Exception;
@@ -225,7 +226,7 @@ class Service
         } finally {
             $zip->close();
             unset($uploadFile);
-            @unlink($tmpFile);
+            is_file($tmpFile) && unlink($tmpFile);
         }
 
         $info['config'] = get_addon_config($name) ? 1 : 0;
@@ -399,7 +400,7 @@ EOD;
             throw new Exception(__("Unable to open file '%s' for writing", "addons.php"));
         }
 
-        file_put_contents($file, "<?php\n\n" . "return " . var_export($config, true) . ";\n", LOCK_EX);
+        file_put_contents($file, "<?php\n\n" . "return " . VarExporter::export($array) . ";\n", LOCK_EX);
         return true;
     }
 

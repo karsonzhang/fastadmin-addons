@@ -1,5 +1,6 @@
 <?php
 
+use Symfony\Component\VarExporter\VarExporter;
 use think\addons\Service;
 use think\App;
 use think\Cache;
@@ -511,7 +512,7 @@ function set_addon_config($name, $config, $writefile = true)
 function set_addon_fullconfig($name, $array)
 {
     $file = ADDON_PATH . $name . DS . 'config.php';
-    $ret = file_put_contents($file, "<?php\n\n" . "return " . var_export($array, true) . ";\n", LOCK_EX);
+    $ret = file_put_contents($file, "<?php\n\n" . "return " . VarExporter::export($array) . ";\n", LOCK_EX);
     if (!$ret) {
         throw new Exception("配置写入失败");
     }
